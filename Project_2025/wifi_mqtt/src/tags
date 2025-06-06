@@ -1,0 +1,17 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+hostapd_listener_cleanup	hostapd_listener.c	/^void hostapd_listener_cleanup() $/;"	f
+hostapd_listener_init	hostapd_listener.c	/^int hostapd_listener_init(const char *socket_path) $/;"	f
+hostapd_listener_receive	hostapd_listener.c	/^ssize_t hostapd_listener_receive(char *buffer, size_t bufsize) $/;"	f
+int_handler	main.c	/^void int_handler(int dummy) $/;"	f
+keep_running	main.c	/^static volatile int keep_running = 1;$/;"	v	file:
+main	main.c	/^int main() $/;"	f
+mosq	mqtt_client.c	/^static struct mosquitto *mosq = NULL;$/;"	v	typeref:struct:mosquitto	file:
+mqtt_client_cleanup	mqtt_client.c	/^void mqtt_client_cleanup() $/;"	f
+mqtt_client_init	mqtt_client.c	/^int mqtt_client_init(const char *host, int port, const char *client_id) $/;"	f
+mqtt_client_publish	mqtt_client.c	/^int mqtt_client_publish(const char *topic, const char *message) $/;"	f
+sockfd	hostapd_listener.c	/^static int sockfd = -1;$/;"	v	file:

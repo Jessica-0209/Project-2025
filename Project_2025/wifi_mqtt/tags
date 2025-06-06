@@ -1,0 +1,36 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+BIN_DIR	Makefile	/^BIN_DIR = bin$/;"	m
+BUILD_DIR	Makefile	/^BUILD_DIR = build$/;"	m
+CC	Makefile	/^CC = gcc$/;"	m
+CFLAGS	Makefile	/^CFLAGS = -Wall -Iinc -I\/usr\/include\/cjson -g$/;"	m
+EVENT_BUF_SIZE	inc/hostapd_listener.h	8;"	d
+HOSTAPD_LISTENER_H	inc/hostapd_listener.h	2;"	d
+HOSTAPD_SOCKET_PATH	inc/hostapd_listener.h	7;"	d
+INC_DIR	Makefile	/^INC_DIR = inc$/;"	m
+LIBS	Makefile	/^LIBS = -lmosquitto -lcjson$/;"	m
+LIB_DIR	Makefile	/^LIB_DIR = lib$/;"	m
+MQTT_CLIENT_H	inc/mqtt_client.h	2;"	d
+OBJS	Makefile	/^OBJS = $(patsubst %.c,$(BUILD_DIR)\/%.o,$(notdir $(SRCS)))$/;"	m
+SRCS	Makefile	/^SRCS = $(wildcard $(SRC_DIR)\/*.c) $(wildcard $(LIB_DIR)\/*.c)$/;"	m
+SRC_DIR	Makefile	/^SRC_DIR = src$/;"	m
+TARGET	Makefile	/^TARGET = $(BIN_DIR)\/wifi_mqtt$/;"	m
+UTILS_H	inc/utils.h	2;"	d
+hostapd_listener_cleanup	src/hostapd_listener.c	/^void hostapd_listener_cleanup() $/;"	f
+hostapd_listener_init	src/hostapd_listener.c	/^int hostapd_listener_init(const char *socket_path) $/;"	f
+hostapd_listener_receive	src/hostapd_listener.c	/^ssize_t hostapd_listener_receive(char *buffer, size_t bufsize) $/;"	f
+int_handler	src/main.c	/^void int_handler(int dummy) $/;"	f
+keep_running	src/main.c	/^static volatile int keep_running = 1;$/;"	v	file:
+log_info	lib/utils.c	/^void log_info(const char *format, ...) $/;"	f
+main	src/main.c	/^int main() $/;"	f
+mosq	src/mqtt_client.c	/^static struct mosquitto *mosq = NULL;$/;"	v	typeref:struct:mosquitto	file:
+mqtt_client_cleanup	src/mqtt_client.c	/^void mqtt_client_cleanup() $/;"	f
+mqtt_client_init	src/mqtt_client.c	/^int mqtt_client_init(const char *host, int port, const char *client_id) $/;"	f
+mqtt_client_publish	src/mqtt_client.c	/^int mqtt_client_publish(const char *topic, const char *message) $/;"	f
+parse_mqtt_config	lib/utils.c	/^int parse_mqtt_config(const char *filename, char **host, int *port, char **topic) $/;"	f
+read_file	lib/utils.c	/^char *read_file(const char *filename) $/;"	f
+sockfd	src/hostapd_listener.c	/^static int sockfd = -1;$/;"	v	file:
