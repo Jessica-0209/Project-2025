@@ -3,7 +3,7 @@ CC = gcc
 CFLAGS = -Wall -Iinc -I/usr/include/cjson -g
 
 # Libraries (add mosquitto and cjson)
-LIBS = -lmosquitto -lcjson
+LIBS = -lmosquitto -lcjson -lpthread
 
 # Directories
 SRC_DIR = src
@@ -38,6 +38,12 @@ $(BUILD_DIR)/%.o: $(LIB_DIR)/%.c
 # Link objects into executable
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
+
+# Compile CLI client separately
+$(BIN_DIR)/cli_client: tools/cli_client.c
+	$(CC) $(CFLAGS) tools/cli_client.c -o $(BIN_DIR)/cli_client $(LIBS)
+
+cli_client: $(BIN_DIR)/cli_client
 
 clean:
 	rm -rf $(BUILD_DIR)/*.o $(TARGET)

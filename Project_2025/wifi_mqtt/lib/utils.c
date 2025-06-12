@@ -91,7 +91,7 @@ int parse_mqtt_config(const char *filename, mqtt_json *config)
     	return 0;
 }
 
-char *build_event_json(const char *event_str)
+char *build_event_json(const char *event_str, const char *ssid)
 {
     	char mac[18] = {0};
     	char event_type[64] = {0};
@@ -107,9 +107,19 @@ char *build_event_json(const char *event_str)
     	strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", t);
 
     	cJSON *root = cJSON_CreateObject();
-    	cJSON_AddStringToObject(root, "event", event_type);
+    	cJSON_AddStringToObject(root, "event_type", event_type);
     	cJSON_AddStringToObject(root, "mac", mac);
-    	cJSON_AddStringToObject(root, "timestamp", timestamp);
+	
+	if (ssid)
+	{
+        	cJSON_AddStringToObject(root, "ssid", ssid);
+	}	
+	else
+    	{	
+        	cJSON_AddStringToObject(root, "ssid", "");
+	}
+    	
+	cJSON_AddStringToObject(root, "timestamp", timestamp);
 
     	char *json_str = cJSON_Print(root);
     	cJSON_Delete(root);

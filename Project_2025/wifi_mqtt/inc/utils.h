@@ -14,7 +14,7 @@ typedef struct
 
 int parse_mqtt_config(const char *filename, mqtt_json *config);
 
-char *build_event_json(const char *event_str);
+char *build_event_json(const char *event_str, const char *ssid);
 
 #endif
 
