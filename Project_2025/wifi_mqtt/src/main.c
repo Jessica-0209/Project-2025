@@ -28,7 +28,8 @@ mqtt_json mqtt_config;
 
 void* handle_cli_commands(void* arg)
 {
-    	int server_fd, client_fd;
+    	int server_fd;
+	int client_fd;
     	struct sockaddr_un addr;
     	char buf[64];
 
@@ -196,7 +197,7 @@ int run_subscriber()
     	mosquitto_destroy(mosq);
     	mosquitto_lib_cleanup();
 
-	display();
+	//display();
 	free_table();
 
     	return 0;

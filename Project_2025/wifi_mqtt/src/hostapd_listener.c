@@ -8,10 +8,7 @@
 
 static int sockfd = -1;
 static char client_path[108]; 
-/*
- *
- *
- */
+
 int hostapd_listener_init(const char *socket_path) 
 {
 	struct sockaddr_un local_addr;
