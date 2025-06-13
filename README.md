@@ -49,6 +49,7 @@ sudo ip link set <interface> up
 ```
 Replace <interface> with your network interface name
 
+
 3. Start MQTT broker
 ```
 mosquitto -c /etc/mosquitto/mosquitto.conf
