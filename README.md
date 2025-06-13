@@ -34,7 +34,8 @@ make
 ```
 # Steps for Execution
 
-## 1. Start hostapd (on one terminal)
+## 1. Start hostapd 
+(on one terminal)
 ```
 sudo ./hostapd hostapd.conf
 ```
@@ -53,7 +54,8 @@ sudo ip link set <interface> up
 ```
 mosquitto -c /etc/mosquitto/mosquitto.conf
 ```
-## 4. Start MQTT publisher (on another terminal)
+## 4. Start MQTT publisher 
+(on another terminal)
 ```
 sudo ./bin/wifi_mqtt publisher
 ```
@@ -61,7 +63,8 @@ sudo ./bin/wifi_mqtt publisher
 - Parses log -> JSON
 - Publishes to topic wifi/events
 
-## 5. Start MQTT subscriber (on another terminal)
+## 5. Start MQTT subscriber 
+(on another terminal)
 ```
 sudo ./bin/wifi_mqtt subscriber
 ```
@@ -69,7 +72,8 @@ sudo ./bin/wifi_mqtt subscriber
 - Creates and maintains hash table of devices using MAC address
 - Listens for CLI commands via pthread
 
-## 6. Display Hash Table via CLI (on another terminal)
+## 6. Display Hash Table via CLI 
+(on another terminal)
 ```
 sudo ./bin/cli_client
 ```
