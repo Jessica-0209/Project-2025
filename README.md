@@ -23,15 +23,15 @@ sudo apt install -y build-essential libmosquitto-dev mosquitto libcjson-dev host
 ```
 
 2. Clone the Repository
-
+```
 git clone https://github.com/Jessica-0209/Project-2025.git
 cd Project-2025
-
+```
 3. Build the Project
-
+```
 make clean
 make
-
+```
 ## Steps for Execution
 
 1. Start hostapd (on one terminal)
