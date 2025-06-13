@@ -78,4 +78,3 @@ sudo ./bin/wifi_mqtt subscriber
 sudo ./bin/cli_client
 ```
 - Connects to subscriber and prints stored MAC-based event records
-
