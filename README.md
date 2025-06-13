@@ -17,10 +17,10 @@ This project captures real-time Wi-Fi events such as probe requests and associat
 
 1. Prerequisites and Installation
 
-`
+```
 sudo apt update
 sudo apt install -y build-essential libmosquitto-dev mosquitto libcjson-dev hostapd libnl-3-dev libnl-genl-3-dev net-tools iw
-`
+```
 
 2. Clone the Repository
 ```
