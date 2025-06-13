@@ -7,7 +7,7 @@ This project captures real-time Wi-Fi events such as probe requests and associat
 ## Features
 
 - UNIX Domain Sockets for Inter Process Commuincation between hostapd and program code
-- MQTT Publisher fetches wifi events from hostapd, converts the log to JSON, and pushes  to broker at topic `wifi/events`
+- MQTT Publisher fetches wifi events from hostapd, transforms the log to JSON, and pushes this JSON to broker at topic `wifi/events`
 - MQTT Subscriber listens and stores events in a hash table
 - Efficient MAC-based tracking using hash table
 - Multi-threaded subscriber (stores log in hash table + listens for CLI command)
@@ -17,10 +17,10 @@ This project captures real-time Wi-Fi events such as probe requests and associat
 
 1. Prerequisites and Installation
 
-```
+`
 sudo apt update
 sudo apt install -y build-essential libmosquitto-dev mosquitto libcjson-dev hostapd libnl-3-dev libnl-genl-3-dev net-tools iw
-```
+`
 
 2. Clone the Repository
 ```
