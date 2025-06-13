@@ -1,10 +1,10 @@
 # Wi-Fi Events Publishing via MQTT from hostapd
 
-## Overview
+# Overview
 
 This project captures real-time Wi-Fi events such as probe requests and association events from hostapd, transforms them into structured JSON format, and publishes them over an MQTT broker. A subscriber listens to these events, stores them in a hash table (MAC-based), and allows viewing the hash table via a CLI client.
 
-## Features
+# Features
 
 - UNIX Domain Sockets for Inter Process Commuincation between hostapd and program code
 - MQTT Publisher fetches wifi events from hostapd, transforms the log to JSON, and pushes this JSON to broker at topic `wifi/events`
@@ -13,32 +13,32 @@ This project captures real-time Wi-Fi events such as probe requests and associat
 - Multi-threaded subscriber (stores log in hash table + listens for CLI command)
 - Real-time event inspection via CLI
 
-## Setup Instructions
+# Setup Instructions
 
-# 1. Prerequisites and Installation
+## 1. Prerequisites and Installation
 
 ```
 sudo apt update
 sudo apt install -y build-essential libmosquitto-dev mosquitto libcjson-dev hostapd libnl-3-dev libnl-genl-3-dev net-tools iw
 ```
 
-# 2. Clone the Repository
+## 2. Clone the Repository
 ```
 git clone https://github.com/Jessica-0209/Project-2025.git
 cd Project-2025
 ```
-# 3. Build the Project
+## 3. Build the Project
 ```
 make clean
 make
 ```
-## Steps for Execution
+# Steps for Execution
 
-# 1. Start hostapd (on one terminal)
+## 1. Start hostapd (on one terminal)
 ```
 sudo ./hostapd hostapd.conf
 ```
-# 2. Configure Wi-Fi AP Interface
+## 2. Configure Wi-Fi AP Interface
 ```
 sudo systemctl stop NetworkManager
 sudo ip link set <interface> down
@@ -49,11 +49,11 @@ sudo ip link set <interface> up
 ```
 - Replace <interface> with your network interface name
 
-# 3. Start MQTT broker
+## 3. Start MQTT broker
 ```
 mosquitto -c /etc/mosquitto/mosquitto.conf
 ```
-# 4. Start MQTT publisher (on another terminal)
+## 4. Start MQTT publisher (on another terminal)
 ```
 sudo ./bin/wifi_mqtt publisher
 ```
@@ -61,7 +61,7 @@ sudo ./bin/wifi_mqtt publisher
 - Parses log -> JSON
 - Publishes to topic wifi/events
 
-# 5. Start MQTT subscriber (on another terminal)
+## 5. Start MQTT subscriber (on another terminal)
 ```
 sudo ./bin/wifi_mqtt subscriber
 ```
@@ -69,7 +69,7 @@ sudo ./bin/wifi_mqtt subscriber
 - Creates and maintains hash table of devices using MAC address
 - Listens for CLI commands via pthread
 
-# 4. Display Hash Table via CLI (on another terminal)
+## 6. Display Hash Table via CLI (on another terminal)
 ```
 sudo ./bin/cli_client
 ```
