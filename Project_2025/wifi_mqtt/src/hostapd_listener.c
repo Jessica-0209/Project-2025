@@ -1,4 +1,6 @@
 #include "hostapd_listener.h"
+#include "log.h"
+
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -17,7 +19,7 @@ int hostapd_listener_init(const char *socket_path)
 	sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (sockfd < 0) 
 	{
-		perror("socket");
+		LOG_ERROR("socket() failed: %s", strerror(errno));
 		return -1;
 	}
 
@@ -29,7 +31,7 @@ int hostapd_listener_init(const char *socket_path)
 
 	if (bind(sockfd, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0) 
 	{
-		perror("bind");
+		LOG_ERROR("bind() failed: %s", strerror(errno));
 		close(sockfd);
 		return -1;
 	}
@@ -41,7 +43,7 @@ int hostapd_listener_init(const char *socket_path)
 	const char *attach_cmd = "ATTACH";
     	if (sendto(sockfd, attach_cmd, strlen(attach_cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) < 0)
     	{
-        	perror("sendto ATTACH");
+        	LOG_ERROR("sendto(ATTACH) failed: %s", strerror(errno));
         	close(sockfd);
         	unlink(client_path);
         	return -1;
@@ -53,36 +55,36 @@ int hostapd_listener_init(const char *socket_path)
     	if (resp_len > 0)
     	{
         	attach_resp[resp_len] = '\0';
-        	printf("[DEBUG] ATTACH Response: %s\n", attach_resp);
+        	LOG_DEBUG("ATTACH Response: %s", attach_resp);
     	}
     	else
     	{
-        	perror("recv ATTACH");
+        	LOG_WARN("recv(ATTACH) failed: %s", strerror(errno));
     	}
 
 	const char *cmd = "STATUS";
 	ssize_t sent = sendto(sockfd, cmd, strlen(cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
 	if (sent < 0)
 	{
-		perror("sendto STATUS");
+		LOG_ERROR("sendto(STATUS) failed: %s", strerror(errno));
 		close(sockfd);
 		unlink(client_path);
 		sockfd = -1;
 		return -1;
 	}
 
-	printf("[INFO] Connected to hostapd socket and sent STATUS\n");
+	LOG_INFO("Connected to hostapd socket and sent STATUS");
 
 	char ack[100] = {0};
 	ssize_t ack_len = recv(sockfd, ack, sizeof(ack)-1, 0);
 	if (ack_len > 0) 
 	{
 		ack[ack_len] = '\0';
-		printf("[DEBUG] Received after STATUS: %s\n", ack);
+		LOG_DEBUG("Received after STATUS: %s", ack);
 	} 
 	else 
 	{
-		perror("recv");
+		LOG_WARN("recv(STATUS ACK) failed: %s", strerror(errno));
 	}
 
 	return 0;
@@ -92,6 +94,7 @@ ssize_t hostapd_listener_receive(char *buffer, size_t bufsize)
 {
     	if (sockfd < 0) 
     	{
+		LOG_ERROR("Listener socket not initialized");
 	    	return -1;
     	}
 
@@ -110,6 +113,8 @@ void hostapd_listener_cleanup()
         	close(sockfd);
 		unlink(client_path);
         	sockfd = -1;
+
+		LOG_INFO("Hostapd listener socket closed and cleaned up");
     	}
 }
 

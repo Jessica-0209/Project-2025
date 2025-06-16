@@ -3,8 +3,6 @@
 
 char *read_file(const char *filename);
 
-void log_info(const char *format, ...);
-
 typedef struct
 {
         char *mqtt_host;

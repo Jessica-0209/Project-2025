@@ -1,8 +1,10 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<cJSON.h>
-#include"wifi_hash.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <cJSON.h>
+
+#include "wifi_hash.h"
+#include "log.h"
 
 #define TABLE_SIZE 101
 
@@ -36,7 +38,7 @@ int insert_or_update(const char* mac, const char* ssid, const char* event_type, 
             		strncpy(current->event_type, event_type, sizeof(current->event_type));
             		strncpy(current->timestamp, timestamp, sizeof(current->timestamp));
 
-            		printf("[HASH] Updated event for %s: %s on SSID %s at %s\n", mac, event_type, ssid, timestamp);
+            		LOG_INFO("[HASH] Updated event for %s: %s on SSID %s\n", mac, event_type, ssid);
             		return 0;
         	}
         	current = current->next;
@@ -46,7 +48,7 @@ int insert_or_update(const char* mac, const char* ssid, const char* event_type, 
     	Wifi_Event* new_node = (Wifi_Event* )malloc(sizeof(Wifi_Event));
     	if (!new_node)
     	{
-        	perror("malloc failed");
+        	LOG_ERROR("malloc failed");
         	return -1;
     	}
 
@@ -57,7 +59,7 @@ int insert_or_update(const char* mac, const char* ssid, const char* event_type, 
     	new_node->next = hash_table[index];
     	hash_table[index] = new_node;
 
-    	printf("[HASH] Inserted event for %s: %s on SSID %s at %s\n", mac, event_type, ssid, timestamp);
+    	LOG_INFO("[HASH] Inserted event for %s: %s on SSID %s\n", mac, event_type, ssid);
 	return 1;
 }
 
@@ -65,12 +67,12 @@ void parse_and_insert(const char* json_str)
 {
 	static int msg_count = 0;
 	msg_count++;
-	printf("[DEBUG] Processing MQTT message #%d\n", msg_count);
+	LOG_DEBUG("Processing MQTT message #%d\n", msg_count);
 
 	cJSON* root = cJSON_Parse(json_str);
 	if(!root)
 	{
-		printf("Invalid!\n");
+		LOG_WARN("Invalid!\n");
 		return;
 	}
 
@@ -85,7 +87,7 @@ void parse_and_insert(const char* json_str)
 	}
 	else
 	{
-		printf("Missing fields in JSON\n");
+		LOG_WARN("Missing fields in JSON\n");
 	}
 
 	cJSON_Delete(root);
@@ -112,8 +114,8 @@ void display()
 void get_hash_table_as_string(char* output, size_t max_len) 
 {
     	int offset = 0;
-    	offset += snprintf(output + offset, max_len - offset, "\n*****WIFI EVENTS TABLE*****\n");
-    	for (int i = 0; i < TABLE_SIZE; i++) 
+    	
+	for (int i = 0; i < TABLE_SIZE; i++) 
     	{
         	Wifi_Event* current = hash_table[i];
         	

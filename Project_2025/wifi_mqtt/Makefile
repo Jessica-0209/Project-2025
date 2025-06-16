@@ -1,9 +1,9 @@
 # Compiler and flags
 CC = gcc
-CFLAGS = -Wall -Iinc -I/usr/include/cjson -g
+CFLAGS = -Wall -Iinc -I/usr/include/cjson -I/usr/include/libnl3 -g
 
 # Libraries (add mosquitto and cjson)
-LIBS = -lmosquitto -lcjson -lpthread
+LIBS = -lmosquitto -lcjson -lpthread -lnl-3 -lnl-genl-3
 
 # Directories
 SRC_DIR = src
@@ -39,9 +39,9 @@ $(BUILD_DIR)/%.o: $(LIB_DIR)/%.c
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
-# Compile CLI client separately
-$(BIN_DIR)/cli_client: tools/cli_client.c
-	$(CC) $(CFLAGS) tools/cli_client.c -o $(BIN_DIR)/cli_client $(LIBS)
+# Compile CLI client separately (includes logging)
+$(BIN_DIR)/cli_client: tools/cli_client.c lib/log.c
+	$(CC) $(CFLAGS) tools/cli_client.c lib/log.c -o $(BIN_DIR)/cli_client $(LIBS)
 
 cli_client: $(BIN_DIR)/cli_client
 

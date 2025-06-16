@@ -7,12 +7,19 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <pthread.h>
+#include <mosquitto.h>
+#include <netlink/netlink.h>
+#include <netlink/genl/genl.h>
+#include <netlink/genl/ctrl.h>
+#include <netlink/msg.h>
+#include <netlink/attr.h>
+#include <linux/nl80211.h>
 
 #include "hostapd_listener.h"
 #include "mqtt_client.h"
 #include "utils.h"
 #include "wifi_hash.h"
-#include <mosquitto.h>
+#include "log.h"
 
 #define CONFIG "config/mqtt_config.json"
 #define CLI_SOCKET_PATH "/tmp/wifi_mqtt_cli.sock"
@@ -26,6 +33,45 @@ void int_handler(int dummy)
 
 mqtt_json mqtt_config;
 
+char ssid_buf[256];
+
+int callback_handler(struct nl_msg *msg, void *arg) 
+{
+    	struct nlattr *attrs[NL80211_ATTR_MAX + 1];
+    	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
+
+    	nla_parse(attrs, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
+
+    	if (attrs[NL80211_ATTR_SSID]) 
+    	{
+        	int len = nla_len(attrs[NL80211_ATTR_SSID]);
+        	memcpy(ssid_buf, nla_data(attrs[NL80211_ATTR_SSID]), len);
+        	ssid_buf[len] = '\0';
+        	return NL_OK;
+    	}
+	
+    	return NL_SKIP;
+}
+
+char *get_ssid() 
+{
+    	struct nl_sock *sock = nl_socket_alloc();
+    	genl_connect(sock);
+    	int driver_id = genl_ctrl_resolve(sock, "nl80211");
+
+    	struct nl_msg *msg = nlmsg_alloc();
+    	genlmsg_put(msg, 0, 0, driver_id, 0, NLM_F_DUMP, NL80211_CMD_GET_INTERFACE, 0);
+    	nl_socket_modify_cb(sock, NL_CB_VALID, NL_CB_CUSTOM, callback_handler, NULL);
+
+    	nl_send_auto(sock, msg);
+    	nl_recvmsgs_default(sock);
+
+    	nlmsg_free(msg);
+    	nl_socket_free(sock);
+
+    	return strlen(ssid_buf) > 0 ? ssid_buf : NULL;
+}
+
 void* handle_cli_commands(void* arg)
 {
     	int server_fd;
@@ -38,7 +84,7 @@ void* handle_cli_commands(void* arg)
     	server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     	if (server_fd < 0) 
     	{
-        	perror("socket");
+        	LOG_ERROR("socket");
         	return NULL;
     	}
 
@@ -48,7 +94,7 @@ void* handle_cli_commands(void* arg)
 
     	if (bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) 
     	{
-        	perror("bind");
+        	LOG_ERROR("bind");
         	close(server_fd);
         	return NULL;
     	}
@@ -84,12 +130,12 @@ void* handle_cli_commands(void* arg)
 //subscriber callback
 void on_message(struct mosquitto *mosq, void *userdata, const struct mosquitto_message *message) 
 {
-    	printf("[MQTT SUB] %s: %s\n", message->topic, (char *)message->payload);
+    	LOG_INFO("[MQTT SUB] %s: %s\n", message->topic, (char *)message->payload);
 	
 	cJSON *root = cJSON_Parse((char *)message->payload);
     	if (!root) 
     	{
-        	fprintf(stderr, "Failed to parse JSON\n");
+        	LOG_WARN("Failed to parse JSON\n");
         	return;
     	}
 	
@@ -111,7 +157,7 @@ void on_message(struct mosquitto *mosq, void *userdata, const struct mosquitto_m
 
     	else 
     	{
-        	fprintf(stderr, "Incomplete event JSON\n");
+        	LOG_WARN("Incomplete event JSON\n");
     	}
 
     	cJSON_Delete(root);
@@ -122,13 +168,13 @@ int run_publisher()
 {
     	if (hostapd_listener_init(HOSTAPD_SOCKET_PATH) < 0) 	
     	{
-        	log_info("Failed to initialize hostapd listener");
+        	LOG_ERROR("Failed to initialize hostapd listener");
         	return 1;
     	}
 
     	if (mqtt_client_init(mqtt_config.mqtt_host, mqtt_config.mqtt_port, "wifi_mqtt_publisher") < 0) 
     	{
-        	log_info("Failed to initialize MQTT client");
+        	LOG_ERROR("Failed to initialize MQTT client");
         	hostapd_listener_cleanup();
         	return 1;
     	}
@@ -139,9 +185,15 @@ int run_publisher()
         	ssize_t len = hostapd_listener_receive(event_buf, sizeof(event_buf));
         	if (len > 0) 
 		{
-            		log_info("Received event: %s", event_buf);
-				
-                        char *json_payload = build_event_json(event_buf, "test2025");
+            		LOG_INFO("Received event: %s", event_buf);
+			
+			char *ssid = get_ssid();
+			if (!ssid)
+			{
+				ssid = "unknown_ssid";
+			}
+
+                        char *json_payload = build_event_json(event_buf, ssid);
 			if (json_payload)
                        	{
                                	mqtt_client_publish(mqtt_config.mqtt_topic, json_payload);
@@ -149,7 +201,7 @@ int run_publisher()
                         }
 			else
                         {
-                              	log_info("Failed to parse event to JSON: %s", event_buf);
+                              	LOG_WARN("Failed to parse event to JSON: %s", event_buf);
                       	}
         	}
     	}
@@ -170,7 +222,7 @@ int run_subscriber()
     	struct mosquitto *mosq = mosquitto_new("wifi_mqtt_subscriber", true, NULL);
     	if (!mosq) 
     	{
-        	fprintf(stderr, "Failed to create MQTT subscriber\n");
+        	LOG_ERROR("Failed to create MQTT subscriber\n");
         	return 1;
     	}
 
@@ -178,7 +230,7 @@ int run_subscriber()
 
     	if (mosquitto_connect(mosq, mqtt_config.mqtt_host, mqtt_config.mqtt_port, 60) != MOSQ_ERR_SUCCESS) 
     	{
-        	fprintf(stderr, "Failed to connect to MQTT broker\n");
+        	LOG_ERROR("Failed to connect to MQTT broker\n");
         	mosquitto_destroy(mosq);
         	return 1;
     	}
@@ -186,7 +238,7 @@ int run_subscriber()
     	mosquitto_subscribe(mosq, NULL, mqtt_config.mqtt_topic, 0);
     	mosquitto_loop_start(mosq);
 
-    	printf("[INFO] Subscribed to topic: %s\n", mqtt_config.mqtt_topic);
+    	LOG_INFO("Subscribed to topic: %s\n", mqtt_config.mqtt_topic);
     	while (keep_running) 
     	{
         	sleep(1);
@@ -197,10 +249,31 @@ int run_subscriber()
     	mosquitto_destroy(mosq);
     	mosquitto_lib_cleanup();
 
-	//display();
 	free_table();
 
     	return 0;
+}
+
+LogLevel get_log_level_from_user(const char *arg)
+{
+	if (strcmp(arg, "error") == 0)
+        {
+		return LOG_LEVEL_ERROR;
+	}
+	if (strcmp(arg, "warn")  == 0)
+	{
+		return LOG_LEVEL_WARNING;
+	}
+	if (strcmp(arg, "info")  == 0)
+	{
+		return LOG_LEVEL_INFO;
+	}
+	if (strcmp(arg, "debug") == 0)
+	{
+		return LOG_LEVEL_DEBUG;
+	}
+  
+	return LOG_LEVEL_INFO;
 }
 
 int main(int argc, char *argv[]) 
@@ -210,13 +283,25 @@ int main(int argc, char *argv[])
 
 	if (argc < 2) 
 	{
-        	fprintf(stderr, "Usage: %s [publisher|subscriber|show]\n", argv[0]);
+        	fprintf(stderr, "Usage: %s [publisher|subscriber] [log_level]\n", argv[0]);
+		fprintf(stderr, "Log levels: error, warn, info, debug\n");
         	return 1;
     	}
 
+	if (argc >= 3) 
+	{
+		int log_level = get_log_level_from_user(argv[2]);
+        	set_log_level(log_level);
+		LOG_DEBUG("log level set to %d", log_level); //this will come only for debug no then, what about the others??????????
+    	} 
+	else 
+    	{
+        	set_log_level(LOG_LEVEL_INFO);
+    	}
+	
     	if (parse_mqtt_config(CONFIG, &mqtt_config) != 0) 
     	{
-        	fprintf(stderr, "Failed to load MQTT config\n");
+        	LOG_ERROR("Failed to load MQTT config\n");
         	return 1;
     	}
 
@@ -230,21 +315,15 @@ int main(int argc, char *argv[])
     	{
         	result = run_subscriber();
     	}
-	else if (strcmp(argv[1], "show") == 0)
-	{
-    		display();  
-    		free_table();
-    		result = 0;
-	}
     	else 
     	{
-    	   	fprintf(stderr, "Invalid mode: %s. Use 'publisher' or 'subscriber', or 'show'\n", argv[1]);
+    	   	LOG_ERROR("Invalid mode: %s. Use 'publisher' or 'subscriber'\n", argv[1]);
     	}
 
     	free(mqtt_config.mqtt_host);
     	free(mqtt_config.mqtt_topic);
 
-    	log_info("Exiting...");
+    	LOG_INFO("Exiting...");
 
 	return result;
 }

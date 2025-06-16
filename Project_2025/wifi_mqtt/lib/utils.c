@@ -1,4 +1,6 @@
 #include "utils.h"
+#include "log.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -32,43 +34,39 @@ char *read_file(const char *filename)
     	return buffer;
 }
 
-void log_info(const char *format, ...) 
-{
-    	va_list args;
-    	time_t now = time(NULL);
-    	struct tm *tm_info = localtime(&now);
-    	char timebuf[20];
-    	strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", tm_info);
 
-    	printf("[%s] ", timebuf);
+/* Function: parse_mqtt_config()
+ * ------------------------------
+ *
+ * Function to parse the mqtt configuration from json
+ *
+ * filename: path to the JSON file
+ * config: pointer to mqtt_json structure where the parsed configuration will be stored
+ *
+ * Returns: success or failure of parsing the configuration file
+ *
+ */
 
-    	va_start(args, format);
-    	vprintf(format, args);
-    	va_end(args);
-
-    	printf("\n");
-}
 
 int parse_mqtt_config(const char *filename, mqtt_json *config) 
 {
-
 	if (filename == NULL)
 	{
 		return -1;
 	}
 
     	char *json_data = read_file(filename);
-    	if (!json_data) 
+	if (!json_data) 
     	{
-        	fprintf(stderr, "Failed to read config file: %s\n", filename);
+        	LOG_ERROR("Failed to read config file: %s\n", filename);
         	return -1;
     	}
 
     	cJSON *root = cJSON_Parse(json_data);
-    	free(json_data);
+	free(json_data); 
     	if (!root) 
     	{
-        	fprintf(stderr, "Failed to parse JSON config\n");
+        	LOG_ERROR("Failed to parse JSON config\n");
         	return -1;
     	}
 
@@ -78,7 +76,7 @@ int parse_mqtt_config(const char *filename, mqtt_json *config)
 
     	if (!cJSON_IsString(jhost) || !cJSON_IsNumber(jport) || !cJSON_IsString(jtopic)) 
     	{
-        	fprintf(stderr, "Invalid config format\n");
+        	LOG_ERROR("Invalid config format\n");
         	cJSON_Delete(root);
         	return -1;
     	}

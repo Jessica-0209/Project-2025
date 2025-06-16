@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <string.h>
 
+#include "log.h"
+
 #define CLI_SOCKET_PATH "/tmp/wifi_mqtt_cli.sock"
 
 int main() 
@@ -37,11 +39,11 @@ int main()
     	if (len > 0)
     	{
         	response[len] = '\0';  
-        	printf("%s\n", response);
+        	LOG_INFO("%s\n", response);
     	}
     	else
     	{
-        	printf("No response received.\n");
+        	LOG_INFO("No response received.\n");
     	}
 
 	close(sock);
