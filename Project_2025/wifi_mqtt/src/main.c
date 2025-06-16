@@ -138,6 +138,7 @@ void on_message(struct mosquitto *mosq, void *userdata, const struct mosquitto_m
         	LOG_WARN("Failed to parse JSON\n");
         	return;
     	}
+	LOG_DEBUG("Successfully parsed JSON!");
 	
 	Wifi_Event event;
     	cJSON *mac = cJSON_GetObjectItem(root, "mac");
@@ -161,6 +162,7 @@ void on_message(struct mosquitto *mosq, void *userdata, const struct mosquitto_m
     	}
 
     	cJSON_Delete(root);
+	LOG_DEBUG("Parsed cJSON object tree freed!");
 }
 
 //function to run the publisher
@@ -171,6 +173,7 @@ int run_publisher()
         	LOG_ERROR("Failed to initialize hostapd listener");
         	return 1;
     	}
+	LOG_DEBUG("Hostapd listener Initialized!");
 
     	if (mqtt_client_init(mqtt_config.mqtt_host, mqtt_config.mqtt_port, "wifi_mqtt_publisher") < 0) 
     	{
@@ -178,6 +181,7 @@ int run_publisher()
         	hostapd_listener_cleanup();
         	return 1;
     	}
+	LOG_DEBUG("MQTT Client Initialized!");
 
     	char event_buf[EVENT_BUF_SIZE];
     	while (keep_running) 
@@ -225,6 +229,7 @@ int run_subscriber()
         	LOG_ERROR("Failed to create MQTT subscriber\n");
         	return 1;
     	}
+	LOG_DEBUG("Mosquitto created successfully!");
 
     	mosquitto_message_callback_set(mosq, on_message);
 
@@ -276,6 +281,8 @@ LogLevel get_log_level_from_user(const char *arg)
 	return LOG_LEVEL_INFO;
 }
 
+int log_level = -1;
+
 int main(int argc, char *argv[]) 
 {
     	signal(SIGINT, int_handler);
@@ -283,20 +290,22 @@ int main(int argc, char *argv[])
 
 	if (argc < 2) 
 	{
-        	fprintf(stderr, "Usage: %s [publisher|subscriber] [log_level]\n", argv[0]);
-		fprintf(stderr, "Log levels: error, warn, info, debug\n");
+        	LOG_ERROR("Usage: %s [publisher|subscriber] [log_level]\n", argv[0]);
+		LOG_ERROR("Log levels: error, warn, info, debug\n");
         	return 1;
     	}
+	LOG_DEBUG("Argument 1 passed successfully!");
 
 	if (argc >= 3) 
 	{
-		int log_level = get_log_level_from_user(argv[2]);
+	 	log_level = get_log_level_from_user(argv[2]);
         	set_log_level(log_level);
-		LOG_DEBUG("log level set to %d", log_level); //this will come only for debug no then, what about the others??????????
+		LOG_DEBUG("Log level set to %d", log_level);
     	} 
 	else 
     	{
         	set_log_level(LOG_LEVEL_INFO);
+		LOG_DEBUG("Default Log level INFO");
     	}
 	
     	if (parse_mqtt_config(CONFIG, &mqtt_config) != 0) 
@@ -309,21 +318,27 @@ int main(int argc, char *argv[])
 
     	if (strcmp(argv[1], "publisher") == 0) 
     	{
+		LOG_DEBUG("Publisher mode ON");
         	result = run_publisher();
     	} 	
     	else if (strcmp(argv[1], "subscriber") == 0) 
     	{
+		LOG_DEBUG("Subscriber mode ON");
         	result = run_subscriber();
     	}
     	else 
     	{
-    	   	LOG_ERROR("Invalid mode: %s. Use 'publisher' or 'subscriber'\n", argv[1]);
+		LOG_DEBUG("Use 'publisher' or 'subscriber'");
+    	   	LOG_ERROR("Invalid mode: %s\n", argv[1]);
     	}
 
     	free(mqtt_config.mqtt_host);
+	LOG_DEBUG("Host freed!");
     	free(mqtt_config.mqtt_topic);
+	LOG_DEBUG("Topic freed!");
 
     	LOG_INFO("Exiting...");
+	LOG_DEBUG("Exited!");
 
 	return result;
 }
