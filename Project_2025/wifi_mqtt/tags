@@ -7,30 +7,102 @@
 BIN_DIR	Makefile	/^BIN_DIR = bin$/;"	m
 BUILD_DIR	Makefile	/^BUILD_DIR = build$/;"	m
 CC	Makefile	/^CC = gcc$/;"	m
-CFLAGS	Makefile	/^CFLAGS = -Wall -Iinc -I\/usr\/include\/cjson -g$/;"	m
+CFLAGS	Makefile	/^CFLAGS = -Wall -Iinc -I\/usr\/include\/cjson -I\/usr\/include\/libnl3 -g$/;"	m
+CLI_SOCKET_PATH	src/main.c	25;"	d	file:
+CLI_SOCKET_PATH	tools/cli_client.c	9;"	d	file:
+CONFIG	src/main.c	24;"	d	file:
 EVENT_BUF_SIZE	inc/hostapd_listener.h	8;"	d
+HASH_TABLE_SIZE	src/sysinfo_hash.c	9;"	d	file:
 HOSTAPD_LISTENER_H	inc/hostapd_listener.h	2;"	d
 HOSTAPD_SOCKET_PATH	inc/hostapd_listener.h	7;"	d
 INC_DIR	Makefile	/^INC_DIR = inc$/;"	m
-LIBS	Makefile	/^LIBS = -lmosquitto -lcjson$/;"	m
+LIBS	Makefile	/^LIBS = -lmosquitto -lcjson -lpthread -lnl-3 -lnl-genl-3$/;"	m
 LIB_DIR	Makefile	/^LIB_DIR = lib$/;"	m
+LOG_DEBUG	inc/log.h	20;"	d
+LOG_ERROR	inc/log.h	17;"	d
+LOG_H	inc/log.h	2;"	d
+LOG_INFO	inc/log.h	19;"	d
+LOG_LEVEL_DEBUG	inc/log.h	/^    LOG_LEVEL_DEBUG$/;"	e	enum:__anon1
+LOG_LEVEL_ERROR	inc/log.h	/^    LOG_LEVEL_ERROR = 0,$/;"	e	enum:__anon1
+LOG_LEVEL_INFO	inc/log.h	/^    LOG_LEVEL_INFO,$/;"	e	enum:__anon1
+LOG_LEVEL_WARNING	inc/log.h	/^    LOG_LEVEL_WARNING,$/;"	e	enum:__anon1
+LOG_WARN	inc/log.h	18;"	d
+LogLevel	inc/log.h	/^} LogLevel;$/;"	t	typeref:enum:__anon1
+MAX_TOPICS	inc/utils.h	4;"	d
+MAX_TOPIC_LENGTH	inc/utils.h	5;"	d
 MQTT_CLIENT_H	inc/mqtt_client.h	2;"	d
 OBJS	Makefile	/^OBJS = $(patsubst %.c,$(BUILD_DIR)\/%.o,$(notdir $(SRCS)))$/;"	m
 SRCS	Makefile	/^SRCS = $(wildcard $(SRC_DIR)\/*.c) $(wildcard $(LIB_DIR)\/*.c)$/;"	m
 SRC_DIR	Makefile	/^SRC_DIR = src$/;"	m
+SYSINFO_PUBLISHER_H	inc/sysinfo_publisher.h	2;"	d
+SysInfo	inc/wifi_hash.h	/^typedef struct SysInfo {$/;"	s
+SysInfo	inc/wifi_hash.h	/^} SysInfo;$/;"	t	typeref:struct:SysInfo
+TABLE_SIZE	src/wifi_hash.c	9;"	d	file:
 TARGET	Makefile	/^TARGET = $(BIN_DIR)\/wifi_mqtt$/;"	m
 UTILS_H	inc/utils.h	2;"	d
+WIFI_HASH_H	inc/wifi_hash.h	2;"	d
+Wifi_Event	inc/wifi_hash.h	/^typedef struct Wifi_Event {$/;"	s
+Wifi_Event	inc/wifi_hash.h	/^} Wifi_Event;$/;"	t	typeref:struct:Wifi_Event
+build_event_json	lib/utils.c	/^char *build_event_json(const char *event_str, const char *ssid)$/;"	f
+build_sysinfo_json	lib/utils.c	/^char *build_sysinfo_json()$/;"	f
+callback_handler	src/main.c	/^int callback_handler(struct nl_msg *msg, void *arg) $/;"	f
+client_path	src/hostapd_listener.c	/^static char client_path[108]; $/;"	v	file:
+cpu_usage	inc/wifi_hash.h	/^    double cpu_usage;$/;"	m	struct:SysInfo
+current_level	lib/log.c	/^static LogLevel current_level = LOG_LEVEL_INFO;$/;"	v	file:
+display_sysinfo_table	src/sysinfo_hash.c	/^void display_sysinfo_table()$/;"	f
+display_wifi_table	src/wifi_hash.c	/^void display_wifi_table()$/;"	f
+event_type	inc/wifi_hash.h	/^    char event_type[32];$/;"	m	struct:Wifi_Event
+free_sysinfo_table	src/sysinfo_hash.c	/^void free_sysinfo_table()$/;"	f
+free_wifi_table	src/wifi_hash.c	/^void free_wifi_table()$/;"	f
+get_cpu_usage	src/sysinfo_publisher.c	/^double get_cpu_usage()$/;"	f
+get_hostname	src/sysinfo_publisher.c	/^char *get_hostname()$/;"	f
+get_log_level_from_user	src/main.c	/^LogLevel get_log_level_from_user(const char *arg)$/;"	f
+get_memory_usage	src/sysinfo_publisher.c	/^double get_memory_usage()$/;"	f
+get_ssid	src/main.c	/^char *get_ssid() $/;"	f
+get_sysinfo_table_as_string	src/sysinfo_hash.c	/^void get_sysinfo_table_as_string(char* output, size_t max_len)$/;"	f
+get_wifi_table_as_string	src/wifi_hash.c	/^void get_wifi_table_as_string(char* output, size_t max_len) $/;"	f
+handle_cli_commands	src/main.c	/^void* handle_cli_commands(void* arg)$/;"	f
+hash	src/wifi_hash.c	/^unsigned int hash(const char* str)$/;"	f
+hash_hostname	src/sysinfo_hash.c	/^static unsigned int hash_hostname(const char* hostname)$/;"	f	file:
+hash_table	src/wifi_hash.c	/^Wifi_Event* hash_table[TABLE_SIZE] = {NULL}; $/;"	v
 hostapd_listener_cleanup	src/hostapd_listener.c	/^void hostapd_listener_cleanup() $/;"	f
 hostapd_listener_init	src/hostapd_listener.c	/^int hostapd_listener_init(const char *socket_path) $/;"	f
 hostapd_listener_receive	src/hostapd_listener.c	/^ssize_t hostapd_listener_receive(char *buffer, size_t bufsize) $/;"	f
+hostname	inc/wifi_hash.h	/^    char hostname[64];$/;"	m	struct:SysInfo
+insert_or_update_sysinfo	src/sysinfo_hash.c	/^int insert_or_update_sysinfo(const char* hostname, double cpu, double mem, const char* timestamp)$/;"	f
+insert_or_update_the_hash	src/wifi_hash.c	/^int insert_or_update_the_hash(const char* mac, const char* ssid, const char* event_type, const char* timestamp)$/;"	f
 int_handler	src/main.c	/^void int_handler(int dummy) $/;"	f
 keep_running	src/main.c	/^static volatile int keep_running = 1;$/;"	v	file:
-log_info	lib/utils.c	/^void log_info(const char *format, ...) $/;"	f
-main	src/main.c	/^int main() $/;"	f
+level_to_string	lib/log.c	/^static const char* level_to_string(LogLevel level) $/;"	f	file:
+log_level	src/main.c	/^int log_level = -1;$/;"	v
+log_message	lib/log.c	/^void log_message(LogLevel level, const char *format, ...) $/;"	f
+mac	inc/wifi_hash.h	/^    char mac[32];$/;"	m	struct:Wifi_Event
+main	src/main.c	/^int main(int argc, char *argv[]) $/;"	f
+main	tools/cli_client.c	/^int main() $/;"	f
+memory_usage	inc/wifi_hash.h	/^    double memory_usage;$/;"	m	struct:SysInfo
 mosq	src/mqtt_client.c	/^static struct mosquitto *mosq = NULL;$/;"	v	typeref:struct:mosquitto	file:
 mqtt_client_cleanup	src/mqtt_client.c	/^void mqtt_client_cleanup() $/;"	f
 mqtt_client_init	src/mqtt_client.c	/^int mqtt_client_init(const char *host, int port, const char *client_id) $/;"	f
 mqtt_client_publish	src/mqtt_client.c	/^int mqtt_client_publish(const char *topic, const char *message) $/;"	f
-parse_mqtt_config	lib/utils.c	/^int parse_mqtt_config(const char *filename, char **host, int *port, char **topic) $/;"	f
+mqtt_config	src/main.c	/^mqtt_json mqtt_config;$/;"	v
+mqtt_host	inc/utils.h	/^        char *mqtt_host;$/;"	m	struct:__anon2
+mqtt_json	inc/utils.h	/^} mqtt_json;$/;"	t	typeref:struct:__anon2
+mqtt_port	inc/utils.h	/^        int mqtt_port;$/;"	m	struct:__anon2
+mqtt_topics	inc/utils.h	/^        char mqtt_topics[MAX_TOPICS][MAX_TOPIC_LENGTH];$/;"	m	struct:__anon2
+next	inc/wifi_hash.h	/^    struct SysInfo* next;$/;"	m	struct:SysInfo	typeref:struct:SysInfo::SysInfo
+next	inc/wifi_hash.h	/^    struct Wifi_Event* next;$/;"	m	struct:Wifi_Event	typeref:struct:Wifi_Event::Wifi_Event
+on_message	src/main.c	/^void on_message(struct mosquitto *mosq, void *userdata, const struct mosquitto_message *message)$/;"	f
+parse_json_and_insert	src/wifi_hash.c	/^void parse_json_and_insert(const char* json_str)$/;"	f
+parse_mqtt_config	lib/utils.c	/^int parse_mqtt_config(const char *filename, mqtt_json *config) $/;"	f
 read_file	lib/utils.c	/^char *read_file(const char *filename) $/;"	f
+run_publisher	src/main.c	/^int run_publisher() $/;"	f
+run_subscriber	src/main.c	/^int run_subscriber() $/;"	f
+run_sysinfo_publisher	src/sysinfo_publisher.c	/^void *run_sysinfo_publisher(void *arg)$/;"	f
+set_log_level	lib/log.c	/^void set_log_level(LogLevel level) $/;"	f
 sockfd	src/hostapd_listener.c	/^static int sockfd = -1;$/;"	v	file:
+ssid	inc/wifi_hash.h	/^    char ssid[64];$/;"	m	struct:Wifi_Event
+ssid_buf	src/main.c	/^char ssid_buf[256];$/;"	v
+sysinfo_hash_table	src/sysinfo_hash.c	/^SysInfo* sysinfo_hash_table[HASH_TABLE_SIZE];$/;"	v
+timestamp	inc/wifi_hash.h	/^    char timestamp[64];$/;"	m	struct:SysInfo
+timestamp	inc/wifi_hash.h	/^    char timestamp[64];$/;"	m	struct:Wifi_Event
+topic_count	inc/utils.h	/^        int topic_count;$/;"	m	struct:__anon2

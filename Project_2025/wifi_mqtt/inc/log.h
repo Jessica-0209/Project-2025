@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 
+extern int log_level;
+
 typedef enum {
     LOG_LEVEL_ERROR = 0,
     LOG_LEVEL_WARNING,

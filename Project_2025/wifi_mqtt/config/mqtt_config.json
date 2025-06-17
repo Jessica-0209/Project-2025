@@ -1,5 +1,5 @@
 {
     	"host": "localhost",
     	"port": 1883,
-    	"topic": "wifi/events"
+    	"topics": ["wifi/events", "system/info"]
 }
