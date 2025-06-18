@@ -1,0 +1,12 @@
+#ifndef NETWORK_H
+#define NETWORK_H
+
+#include <stddef.h>
+
+int get_wireless_interface(char *iface_name, size_t max_len);
+
+int get_hostapd_socket_path(char *socket_path, size_t max_len);
+
+int unlink_socket_path(const char *path);
+
+#endif

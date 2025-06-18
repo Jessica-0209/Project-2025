@@ -1,5 +1,6 @@
 #include "utils.h"
 #include "log.h"
+#include "hostapd_listener.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -208,8 +209,8 @@ char *build_event_json(const char *event_str, const char *ssid)
 
     	time_t now = time(NULL);
     	struct tm *t = localtime(&now);
-    	char timestamp[64];
-    	strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", t);
+	char timestamp[64] = {0};
+	strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", t);
 
     	cJSON *root = cJSON_CreateObject();
 
@@ -265,9 +266,11 @@ char *build_sysinfo_json()
     	gethostname(hostname, sizeof(hostname));
 	
     	FILE *fp;
-    	char buf[128];
+    	char buf[128] = {0};
     	double cpu_usage = 0.0;
     	double mem_usage = 0.0;
+
+	int clients = get_connected_clients();
 
     	fp = fopen("/proc/stat", "r");
     	if (fp)
@@ -334,6 +337,7 @@ char *build_sysinfo_json()
         }
 
     	cJSON *root = cJSON_CreateObject();
+	cJSON_AddNumberToObject(root, "clients", clients);
     	cJSON_AddStringToObject(root, "hostname", hostname);
     	cJSON_AddNumberToObject(root, "cpu", cpu_usage);
     	cJSON_AddNumberToObject(root, "memory", mem_usage);

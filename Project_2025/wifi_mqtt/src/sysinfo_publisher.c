@@ -5,9 +5,11 @@
 #include <mosquitto.h>
 #include <cjson/cJSON.h>
 #include <sys/utsname.h>
+#include <net/if.h>
 
 #include "utils.h"
 #include "log.h"
+#include "network.h"
 
 extern mqtt_json mqtt_config;
 
@@ -21,7 +23,7 @@ extern mqtt_json mqtt_config;
 
 char *get_hostname()
 {
-    	static char hostname[64];
+    	static char hostname[64] = {0};
 
     	if (gethostname(hostname, sizeof(hostname)) != 0)
 	{
@@ -43,7 +45,7 @@ char *get_hostname()
  * Returns: CPU usage as a percentage, or -1 on error.
  */
 
-double get_cpu_usage()
+long get_cpu_usage()
 {
     	FILE *fp = fopen("/proc/stat", "r");
 
@@ -74,19 +76,8 @@ double get_cpu_usage()
     	fclose(fp2);
 	LOG_DEBUG("[SYSINFO] CPU Snapshot 2 - user: %ld, nice: %ld, system: %ld, idle: %ld", user2, nice2, system2, idle2);
 
-    	long total_diff = (user2 + nice2 + system2 + idle2) - (user + nice + system + idle);
-    	long idle_diff = idle2 - idle;
-	
-    	if (total_diff == 0) 
-	{
-		return 0;
-	}
-	
-	double usage = 100.0 * (total_diff - idle_diff) / total_diff;
-	
-	LOG_DEBUG("[SYSINFO] CPU Usage: %.2f%%", usage);
-	
-	return usage;
+	long total_jiff = (user2 + nice2 + system2) - (user + nice + system);
+    	return total_jiff;	
 }
 
 /* Function: get_memory_usage()
@@ -98,7 +89,7 @@ double get_cpu_usage()
  * Returns: Memory usage as a percentage (double), or -1 on error.
  */
 
-double get_memory_usage()
+long get_memory_usage()
 {
     	FILE *fp = fopen("/proc/meminfo", "r");
     	
@@ -109,8 +100,8 @@ double get_memory_usage()
 	}
 
     	long total = 0, free = 0, buffers = 0, cached = 0;
-    	char key[32];
-    	long value;
+    	char key[32] = {0};
+    	long value = 0;
 
     	while (fscanf(fp, "%s %ld kB\n", key, &value) == 2)
     	{
@@ -135,7 +126,7 @@ double get_memory_usage()
 
     	long used = total - free - buffers - cached;
 	
-	double usage = used * 1024;
+	double usage = used * 1024L;
 	LOG_DEBUG("[SYSINFO] Memory Usage: %ld (total: %ld kB)", usage, total);
 	
 	return usage;	

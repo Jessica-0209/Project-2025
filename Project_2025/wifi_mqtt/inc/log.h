@@ -14,6 +14,8 @@ typedef enum {
 
 void set_log_level(LogLevel level);
 
+const char* level_to_string(LogLevel level);
+
 void log_message(LogLevel level, const char *format, ...);
 
 #define LOG_ERROR(...)   log_message(LOG_LEVEL_ERROR, __VA_ARGS__)

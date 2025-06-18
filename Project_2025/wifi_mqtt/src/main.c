@@ -20,6 +20,7 @@
 #include "utils.h"
 #include "wifi_hash.h"
 #include "log.h"
+#include "network.h"
 
 #define CONFIG "config/mqtt_config.json"
 #define CLI_SOCKET_PATH "/tmp/wifi_mqtt_cli.sock"
@@ -28,7 +29,7 @@ static volatile int g_keep_running = 1;
 
 void int_handler(int dummy) 
 {
-    	keep_running = 0;
+    	g_keep_running = 0;
 }
 
 mqtt_json mqtt_config;
@@ -152,8 +153,11 @@ void* handle_cli_commands(void* arg)
     	struct sockaddr_un addr;
     	char buf[64];
 
-    	unlink(CLI_SOCKET_PATH);
-	LOG_DEBUG("CLI socket path cleaned");
+	if (unlink_socket_path(CLI_SOCKET_PATH) != 0)
+	{
+                LOG_ERROR("[CLI] Failed to clean CLI socket path. Aborting...");
+                return NULL;
+        }
 
     	server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     	if (server_fd < 0) 
@@ -176,14 +180,14 @@ void* handle_cli_commands(void* arg)
 	LOG_DEBUG("CLI socket bound to path");
 
     	listen(server_fd, 5);
-	LOG_DEBUG("CLI server listening");
+	LOG_DEBUG("[CLI] CLI server listening");
 
-    	while (keep_running) 
+    	while (g_keep_running) 
     	{
         	client_fd = accept(server_fd, NULL, NULL);
         	if (client_fd < 0) 
 		{
-			LOG_WARN("CLI client accept failed");
+			LOG_WARN("[CLI] CLI client accept failed");
 			continue;
 		}
 
@@ -191,30 +195,34 @@ void* handle_cli_commands(void* arg)
 
 		if (len < 0)
 		{
-			LOG_WARN("CLI read error");
+			LOG_WARN("[CLI] CLI read error");
 			close(client_fd);
 			continue;
 		}
 
         	buf[len] = '\0';
-		LOG_DEBUG("CLI received: %s", buf);
+		LOG_DEBUG("[CLI] CLI received: %s", buf);
 
         	if (strcmp(buf, "show") == 0) 
 		{
             		char response[4096];
     			get_wifi_table_as_string(response, sizeof(response));
     			write(client_fd, response, strlen(response)); 
-			LOG_DEBUG("Sent CLI response");
+			LOG_DEBUG("[CLI] Sent CLI response");
         	}
 
         	close(client_fd);
     	}
 
     	close(server_fd);
-	//unlink_socket_path(CLI_SOCKET_PATH);
-    	unlink(CLI_SOCKET_PATH);
 
-	LOG_DEBUG("CLI server shutdown complete");
+	if (unlink_socket_path(CLI_SOCKET_PATH) != 0)
+	{
+        	LOG_ERROR("[CLI] Failed to clean CLI socket path. Aborting...");
+        	return NULL;
+	}
+    	
+	LOG_DEBUG("[CLI] CLI server shutdown complete");
 
     	return NULL;
 }
@@ -250,7 +258,9 @@ void on_message(struct mosquitto *mosq, void *userdata, const struct mosquitto_m
 
     	if (strcmp(topic, "wifi/events") == 0)
     	{
-        	Wifi_Event event;
+	   	Wifi_Event event;
+		memset(&event, 0, sizeof(Wifi_Event));
+
         	cJSON *mac = cJSON_GetObjectItem(root, "mac");
         	cJSON *ssid = cJSON_GetObjectItem(root, "ssid");
         	cJSON *event_type = cJSON_GetObjectItem(root, "event_type");
@@ -319,7 +329,7 @@ void on_message(struct mosquitto *mosq, void *userdata, const struct mosquitto_m
 
 static int run_publisher() 
 {
-    	if (hostapd_listener_init(HOSTAPD_SOCKET_PATH) < 0) 	
+    	if (hostapd_listener_init() < 0) 	
     	{
         	LOG_ERROR("Failed to initialize hostapd listener");
         	return 1;
@@ -336,7 +346,7 @@ static int run_publisher()
 
     	char event_buf[EVENT_BUF_SIZE] = {'\0'};
     	
-	while (keep_running) 
+	while (g_keep_running) 
     	{
         	ssize_t len = hostapd_listener_receive(event_buf, sizeof(event_buf));
         	
@@ -408,8 +418,6 @@ static int run_publisher()
 
 static int run_subscriber() 
 {
-    //	mosquitto_lib_init();
-
 	if (mosquitto_lib_init() != MOSQ_ERR_SUCCESS) 
 	{
 	    	LOG_ERROR("Failed to initialize Mosquitto library\n");
@@ -425,7 +433,8 @@ static int run_subscriber()
 	LOG_DEBUG("CLI thread joined successfully.");
 
     	struct mosquitto *mosq = mosquitto_new("wifi_mqtt_subscriber", true, NULL);
-    	if (!mosq) 
+    	
+	if (!mosq) 
     	{
         	LOG_ERROR("Failed to create MQTT subscriber\n");
         	return 1;
@@ -446,9 +455,10 @@ static int run_subscriber()
     		mosquitto_subscribe(mosq, NULL, mqtt_config.mqtt_topics[i], 0);
     		LOG_INFO("Subscribed to topic: %s\n", mqtt_config.mqtt_topics[i]);
 	}
+	
 	mosquitto_loop_start(mosq);
     	
-	while (keep_running) 
+	while (g_keep_running) 
     	{
         	sleep(1);
     	}

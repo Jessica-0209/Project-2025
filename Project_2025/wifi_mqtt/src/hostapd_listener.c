@@ -1,5 +1,6 @@
 #include "hostapd_listener.h"
 #include "log.h"
+#include "network.h"
 
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -8,8 +9,9 @@
 #include <string.h>
 #include <errno.h>
 
-static int sockfd = -1;
-static char client_path[108]; 
+int sockfd = -1;
+char socket_path[128] = {0};
+static char client_path[128] = {0}; 
 
 /* Function: hostapd_listener_init()
  * ------------------------------------------
@@ -22,13 +24,25 @@ static char client_path[108];
  * Returns: 0 on success, -1 on failure
  */
 
-int hostapd_listener_init(const char *socket_path) 
+int hostapd_listener_init() 
 {
+	if (get_hostapd_socket_path(socket_path, sizeof(socket_path)) != 0)
+        {
+                LOG_ERROR("Failed to determine hostapd socket path");
+                return -1;
+        }
 
-	if (NULL == *socket_path)
+	const char *iface = strrchr(socket_path, '/');
+	
+	if (iface && *(iface + 1))
 	{
-		return  -1;
+    		LOG_DEBUG("Connected to wireless interface: %s", iface + 1);
 	}
+	else
+	{
+    		LOG_DEBUG("Connected to wireless interface (unknown)");
+	}
+
 	struct sockaddr_un local_addr;
 	struct sockaddr_un remote_addr;
 	
@@ -47,9 +61,13 @@ int hostapd_listener_init(const char *socket_path)
 	local_addr.sun_family = AF_UNIX;
 	snprintf(client_path, sizeof(client_path), "/tmp/wifi_mqtt_socket_%d", getpid());
 	strncpy(local_addr.sun_path, client_path, sizeof(local_addr.sun_path) - 1);
-	// check failed or sucess 
-	// goto  
-	unlink(client_path); 
+
+	if (unlink_socket_path(client_path) != 0)
+        {
+                LOG_ERROR("[SOCKET] Could not clean up old socket. Aborting...");
+                return -1;
+        }
+        LOG_DEBUG("[SOCKET] CLI socket path cleaned");
 
 	LOG_DEBUG("Client path set to %s", client_path);
 
@@ -73,8 +91,15 @@ int hostapd_listener_init(const char *socket_path)
     	{
         	LOG_ERROR("sendto(ATTACH) failed: %s", strerror(errno));
         	close(sockfd);
-        	unlink(client_path);
-        	return -1;
+        	
+		if (unlink_socket_path(client_path) != 0)
+        	{
+                	LOG_ERROR("[SOCKET] Could not clean up old socket. Aborting...");
+                	return -1;
+        	}
+        	LOG_DEBUG("[SOCKET] CLI socket path cleaned");
+		
+		return -1;
     	}
 	LOG_DEBUG("ATTACH command sent successfully");
 
@@ -101,7 +126,13 @@ int hostapd_listener_init(const char *socket_path)
 	{
 		LOG_ERROR("sendto(STATUS) failed: %s", strerror(errno));
 		close(sockfd);
-		unlink(client_path);
+		
+		if (unlink_socket_path(client_path) != 0)
+        	{
+                	LOG_ERROR("[SOCKET] Could not clean up old socket. Aborting...");
+                	return -1;
+        	}
+        	LOG_DEBUG("[SOCKET] CLI socket path cleaned");
 		
 		sockfd = -1;
 		return -1;
@@ -124,6 +155,80 @@ int hostapd_listener_init(const char *socket_path)
 	}
 
 	return 0;
+}
+
+/*
+ * Function: get_connected_clients()
+ * ------------------------------------------
+ *
+ *  Function to calculate the number of clients connected.
+ *
+ *  Returns: Returns the number of clients connected.
+ *
+ */
+
+int get_connected_clients()
+{
+    	if (sockfd < 0)
+    	{
+        	LOG_ERROR("[SOCKET] Hostapd socket not initialized");
+        	return -1;
+    	}
+	LOG_DEBUG("[SOCKET] Hostapd socket initialized!");
+
+    	const char *cmd = "STA-FIRST";
+    
+	struct sockaddr_un remote_addr;
+	memset(&remote_addr, 0, sizeof(remote_addr));
+	remote_addr.sun_family = AF_UNIX;
+	
+	if (get_hostapd_socket_path(socket_path, sizeof(socket_path)) != 0)
+    	{
+        	LOG_ERROR("Failed to send STA-FIRST");
+        	return -1;
+    	}
+
+	LOG_DEBUG("[get_connected_clients] Sending STA-FIRST to %s", remote_addr.sun_path);
+
+        if (sendto(sockfd, cmd, strlen(cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) < 0)
+        {
+                LOG_ERROR("Failed to send STA-FIRST: %s", strerror(errno));
+                return -1;
+        }
+
+    	char buf[64] = {0};
+    	int count = 0;
+
+    	while (1)
+    	{
+        	ssize_t len = recv(sockfd, buf, sizeof(buf) - 1, 0);
+        	if (len <= 0)
+        	{
+            		LOG_WARN("recv failed during STA iteration");
+            		break;
+        	}
+
+        	buf[len] = '\0';
+
+        	if (strncmp(buf, "FAIL", 4) == 0)
+        	{
+            		break;
+        	}
+	
+        	count++;
+
+       		char cmd_next[128] = {0};
+        	snprintf(cmd_next, sizeof(cmd_next), "STA-NEXT %s", buf);
+        	
+		if (sendto(sockfd, cmd_next, strlen(cmd_next), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) < 0)
+        	{
+            		LOG_ERROR("send(STA-NEXT) failed");
+            		break;
+        	}
+    	}
+
+    	LOG_DEBUG("Total connected clients via hostapd: %d", count);
+    	return count;
 }
 
 /* Function: hostapd_listener_receive()
@@ -178,8 +283,15 @@ void hostapd_listener_cleanup()
     	if (sockfd >= 0) 
     	{
         	close(sockfd);
-		unlink(client_path);
-        	sockfd = -1;
+        	
+		if (unlink_socket_path(client_path) != 0)
+        	{
+                	LOG_ERROR("[SOCKET] Could not clean up old socket. Aborting...");
+                	return;
+        	}
+        	LOG_DEBUG("[SOCKET] CLI socket path cleaned");
+
+		sockfd = -1;
 
 		LOG_INFO("Hostapd listener socket closed and cleaned up");
     	}

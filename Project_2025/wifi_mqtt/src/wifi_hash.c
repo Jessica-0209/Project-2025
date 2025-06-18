@@ -13,7 +13,8 @@ Wifi_Event* hash_table[TABLE_SIZE] = {NULL};
 /* Function: hash()
  * ------------------------------------------
  *
- * Computes a hash value for the given MAC address using the djb2 algorithm to index into the hash table.
+ * Computes a hash value for the given MAC address using the djb2 algorithm to 
+ * index into the hash table.
  *
  * str: The MAC address as a string.
  *
@@ -40,7 +41,8 @@ unsigned int hash(const char* str)
 /* Function: insert_or_update_the_hash()
  * ------------------------------------------
  *
- * Inserts a new Wi-Fi event into the hash table or updates an existing entry based on the MAC address. Maintains collision chains using linked lists.
+ * Inserts a new Wi-Fi event into the hash table or updates an existing entry 
+ * based on the MAC address. Maintains collision chains using linked lists.
  *
  * mac:        MAC address of the device.
  * ssid:       SSID associated with the event.
@@ -96,9 +98,11 @@ int insert_or_update_the_hash(const char* mac, const char* ssid, const char* eve
 /* Function: parse_json_and_insert()
  * ------------------------------------------
  *
- * Parses an MQTT JSON string containing Wi-Fi event data and stores it in the hash table.
+ * Parses an MQTT JSON string containing Wi-Fi event data and stores it in the
+ * hash table.
  *
- * json_str: The JSON formatted string containing keys: mac, ssid, event_type, and timestamp.
+ * json_str: The JSON formatted string containing keys: mac, ssid, event_type, 
+ * and timestamp.
  *
  * Returns: void
  */
@@ -167,7 +171,8 @@ void display_wifi_table()
 /* Function: get_wifi_table_as_string()
  * ------------------------------------------
  *
- * Serializes the Wi-Fi event hash table into a string for use in command line output or further processing.
+ * Serializes the Wi-Fi event hash table into a string for use in command line 
+ * output or further processing.
  *
  * output:   Buffer to store the resulting string.
  * max_len:  Maximum length of the output buffer.
@@ -202,7 +207,8 @@ void get_wifi_table_as_string(char* output, size_t max_len)
 /* Function: free_wifi_table()
  * ------------------------------------------
  *
- * Frees all dynamically allocated memory in the hash table and resets the table.
+ * Frees all dynamically allocated memory in the hash table and resets the 
+ * table.
  *
  * Returns: void
  */
