@@ -24,6 +24,8 @@ static char client_path[128] = {0};
  * Returns: 0 on success, -1 on failure
  */
 
+struct sockaddr_un remote_addr;
+
 int hostapd_listener_init() 
 {
 	if (get_hostapd_socket_path(socket_path, sizeof(socket_path)) != 0)
@@ -44,7 +46,7 @@ int hostapd_listener_init()
 	}
 
 	struct sockaddr_un local_addr;
-	struct sockaddr_un remote_addr;
+//	struct sockaddr_un remote_addr;
 	
 	LOG_DEBUG("Initializing hostapd listener...");
 
@@ -177,17 +179,16 @@ int get_connected_clients()
 	LOG_DEBUG("[SOCKET] Hostapd socket initialized!");
 
     	const char *cmd = "STA-FIRST";
-    
-	struct sockaddr_un remote_addr;
+    	
 	memset(&remote_addr, 0, sizeof(remote_addr));
-	remote_addr.sun_family = AF_UNIX;
-	
+        remote_addr.sun_family = AF_UNIX;
+        strncpy(remote_addr.sun_path, socket_path, sizeof(remote_addr.sun_path) - 1);
+
 	if (get_hostapd_socket_path(socket_path, sizeof(socket_path)) != 0)
     	{
         	LOG_ERROR("Failed to send STA-FIRST");
         	return -1;
     	}
-
 	LOG_DEBUG("[get_connected_clients] Sending STA-FIRST to %s", remote_addr.sun_path);
 
         if (sendto(sockfd, cmd, strlen(cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) < 0)
