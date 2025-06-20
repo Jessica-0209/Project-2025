@@ -342,6 +342,34 @@ char *build_sysinfo_json(const char *hostapd_config)
     	cJSON_AddNumberToObject(root, "cpu", cpu_usage);
     	cJSON_AddNumberToObject(root, "memory", mem_usage);
 
+	if (hostapd_config && strlen(hostapd_config) > 0)
+    	{
+		cJSON *config_obj = cJSON_CreateObject();
+
+		char config_copy[512] = {0};
+		strncpy(config_copy, hostapd_config, sizeof(config_copy));
+		config_copy[sizeof(config_copy) - 1] = '\0';
+
+		char *line = strtok(config_copy, "\n");
+
+		while (line)
+		{
+    			char *eq = strchr(line, '=');
+
+			if (eq)
+			{
+        			*eq = '\0';
+        			const char *key = line;
+        			const char *value = eq + 1;
+        			cJSON_AddStringToObject(config_obj, key, value);
+    			}
+    			line = strtok(NULL, "\n");
+		}
+
+		cJSON_AddItemToObject(root, "hostapd_config", config_obj);
+
+    	}
+
     	char *json_str = cJSON_Print(root);
     	LOG_DEBUG("Built sysinfo JSON: %s", json_str);
 
