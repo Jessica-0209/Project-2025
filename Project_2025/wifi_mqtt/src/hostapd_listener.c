@@ -156,6 +156,43 @@ int hostapd_listener_init()
 		LOG_WARN("recv(STATUS ACK) failed: %s", strerror(errno));
 	}
 
+	const char *config_cmd = "GET_CONFIG";
+        LOG_DEBUG("Sending GET_CONFIG command");
+
+        ssize_t sent = sendto(sockfd, config_cmd, strlen(config_cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+
+        if (sent < 0)
+        {
+                LOG_ERROR("sendto(GET_CONFIG) failed: %s", strerror(errno));
+                close(sockfd);
+
+                if (unlink_socket_path(client_path) != 0)
+                {
+                        LOG_ERROR("[SOCKET] Could not clean up old socket. Aborting...");
+                        return -1;
+                }
+                LOG_DEBUG("[SOCKET] CLI socket path cleaned");
+
+                sockfd = -1;
+                return -1;
+        }
+
+        LOG_INFO("GET_CONFIG command sent!");
+
+        char hostapd_config_ack[128] = {0};
+
+        ssize_t hostapd_ack_len = recv(sockfd, hostapd_config_ack, sizeof(hostapd_config_ack)-1, 0);
+
+        if (hostapd_ack_len > 0)
+        {
+                hostapd_config_ack[hostapd_ack_len] = '\0';
+                LOG_DEBUG("Received after GET_CONFIG: %s", hostapd_config_ack);
+        }
+        else
+        {
+                LOG_WARN("recv(GET_CONFIG ACK) failed: %s", strerror(errno));
+        }
+
 	return 0;
 }
 
