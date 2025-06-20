@@ -9,9 +9,44 @@
 #include <net/if.h>
 #include <linux/wireless.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 #define HOSTAPD_DIR "/var/run/hostapd"
 #define MAX_PATH_LEN 128
+
+/* Function: create_unix_socket()
+ * --------------------------------------------------
+ *
+ * This function can be used to create a UNIX socket for both stream (SOCK_STREAM)
+ * and datagram (SOCK_DGRAM) communication.
+ *
+ * type: Type of socket - SOCK_STREAM or SOCK_DGRAM.
+ * path: Filesystem path for the UNIX socket.
+ * bind_socket: Whether to bind the socket to the path (1 = yes, 0 = no).
+ *
+ * Returns: File descriptor on success, -1 on error.
+ *
+ */
+
+int create_socket(const int domain, const int type, const int protocol)
+{
+    	int fd = socket(domain, type, protocol);
+    	
+    	if (fd < 0) 
+    	{
+        	LOG_ERROR("Socket creation failed [domain=%d, type=%d]: %s", domain, type, strerror(errno));
+        	return -1;
+    	}
+
+	if (domain != AF_UNIX && domain != AF_INET)
+	{
+    		LOG_WARN("Unusual socket domain passed: %d", domain);
+	}
+
+    	LOG_DEBUG("Socket created successfully [fd=%d, domain=%d, type=%d]", fd, domain, type);
+    	return fd;
+}
 
 /* Function: get_wireless_interface()
  * ------------------------------------------

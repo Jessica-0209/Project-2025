@@ -40,8 +40,8 @@ $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
 # Compile CLI client separately (includes logging)
-$(BIN_DIR)/cli_client: tools/cli_client.c lib/log.c
-	$(CC) $(CFLAGS) tools/cli_client.c lib/log.c -o $(BIN_DIR)/cli_client $(LIBS)
+$(BIN_DIR)/cli_client: tools/cli_client.c lib/log.c lib/network.c
+	$(CC) $(CFLAGS) tools/cli_client.c lib/log.c lib/network.c -o $(BIN_DIR)/cli_client $(LIBS)
 
 cli_client: $(BIN_DIR)/cli_client
 

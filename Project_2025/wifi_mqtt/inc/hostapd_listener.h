@@ -9,6 +9,23 @@
 extern int sockfd;
 extern char hostapd_config_ack[128];
 
+typedef enum {
+    CMD_GET_CONFIG,
+    CMD_STATUS,
+    CMD_ATTACH,
+    CMD_COUNT 
+} command_type;
+
+typedef struct {
+
+    const char *commands[CMD_COUNT];
+
+} command;
+
+extern command hostapd_cmds;
+
+int send_hostapd_command(const int sockfd, const command_type type);
+
 int hostapd_listener_init();
 
 int get_connected_clients();

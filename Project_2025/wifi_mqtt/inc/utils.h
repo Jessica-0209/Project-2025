@@ -14,7 +14,7 @@ typedef struct
         int mqtt_port;
 } mqtt_json;
 
-int parse_mqtt_config(const char *filename, mqtt_json *config);
+int parse_mqtt_json_config_file(const char *filename, mqtt_json *config);
 
 char *build_event_json(const char *event_str, const char *ssid);
 

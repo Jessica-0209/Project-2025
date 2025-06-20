@@ -3,6 +3,8 @@
 
 #include <stddef.h>
 
+int create_socket(const int domain,const int type,const int protocol);
+
 int get_wireless_interface(char *iface_name, size_t max_len);
 
 int get_hostapd_socket_path(char *socket_path, size_t max_len);

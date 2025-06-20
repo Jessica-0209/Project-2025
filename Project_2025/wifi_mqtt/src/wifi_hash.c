@@ -38,7 +38,7 @@ unsigned int hash(const char* str)
 	return index;
 }
 
-/* Function: insert_or_update_the_hash()
+/* Function: insert_or_update_the_hash_table()
  * ------------------------------------------
  *
  * Inserts a new Wi-Fi event into the hash table or updates an existing entry 
@@ -52,7 +52,7 @@ unsigned int hash(const char* str)
  * Returns: 0 if updated, 1 if inserted, -1 on malloc failure.
  */
 
-int insert_or_update_the_hash(const char* mac, const char* ssid, const char* event_type, const char* timestamp)
+int insert_or_update_the_hash_table(const char* mac, const char* ssid, const char* event_type, const char* timestamp)
 {
     	unsigned int index = hash(mac);
 	LOG_DEBUG("[HASH] Inserting/updating MAC %s at index %u", mac, index);
@@ -129,7 +129,7 @@ void parse_json_and_insert(const char* json_str)
 	{
 		LOG_DEBUG("[HASH] Extracted MAC: %s, SSID: %s, Event: %s, Time: %s", mac->valuestring, ssid->valuestring, event_type->valuestring, timestamp->valuestring);
 
-		insert_or_update_the_hash(mac->valuestring, ssid->valuestring, event_type->valuestring, timestamp->valuestring);	
+		insert_or_update_the_hash_table(mac->valuestring, ssid->valuestring, event_type->valuestring, timestamp->valuestring);	
 	}
 	else
 	{

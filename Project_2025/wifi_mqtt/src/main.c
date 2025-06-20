@@ -159,7 +159,8 @@ void* handle_cli_commands(void* arg)
                 return NULL;
         }
 
-    	server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    	server_fd = create_socket(AF_UNIX, SOCK_STREAM, 0);
+	
     	if (server_fd < 0) 
     	{
         	LOG_ERROR("CLI socket creation failed");
@@ -276,7 +277,7 @@ void on_message(struct mosquitto *mosq, void *userdata, const struct mosquitto_m
             		strncpy(event.timestamp, timestamp->valuestring, sizeof(event.timestamp));
 
 			LOG_DEBUG("Inserting event into hash table...");
-            		insert_or_update_the_hash(event.mac, event.ssid, event.event_type, event.timestamp);
+            		insert_or_update_the_hash_table(event.mac, event.ssid, event.event_type, event.timestamp);
 			LOG_DEBUG("Event inserted into hash table.");
         	}
         	
@@ -561,7 +562,7 @@ int main(int argc, char *argv[])
 		LOG_DEBUG("Default Log level INFO");
     	}
 	
-    	if (parse_mqtt_config(CONFIG, &mqtt_config) != 0) 
+    	if (parse_mqtt_json_config_file(CONFIG, &mqtt_config) != 0) 
     	{
         	LOG_ERROR("Failed to load MQTT config\n");
         	return 1;

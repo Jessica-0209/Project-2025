@@ -14,6 +14,72 @@ char socket_path[128] = {0};
 static char client_path[128] = {0}; 
 char hostapd_config_ack[128] = {0};
 
+command hostapd_cmds = {
+    .commands = {
+        [CMD_GET_CONFIG] = "GET_CONFIG",
+        [CMD_STATUS]     = "STATUS",
+        [CMD_ATTACH]     = "ATTACH"
+    }
+};
+
+int send_hostapd_command(const int sockfd,const command_type type)
+{
+	struct sockaddr_un remote_addr;
+    	memset(&remote_addr, 0, sizeof(remote_addr));
+    	remote_addr.sun_family = AF_UNIX;
+    	strncpy(remote_addr.sun_path, socket_path, sizeof(remote_addr.sun_path) - 1);
+    
+	const char *cmd = hostapd_cmds.commands[type];
+	LOG_DEBUG("Sending hostapd command [%d]: %s", type, cmd);
+
+	ssize_t sent = sendto(sockfd, cmd, strlen(cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+
+	if (sent < 0)
+	{
+		LOG_ERROR("sendto() failed: %s", strerror(errno));
+		LOG_DEBUG("Closing hostapd socket: fd=%d", sockfd);
+		close(sockfd);
+
+		if (unlink_socket_path(client_path) != 0)
+		{
+			LOG_ERROR("[SOCKET] Could not clean up old socket. Aborting...");
+			return -1;
+		}
+		LOG_DEBUG("[SOCKET] CLI socket path cleaned");
+
+		return -1;
+	}
+	LOG_DEBUG("%s command sent successfully", cmd);
+
+	char resp[256] = {0};
+
+	ssize_t resp_len = recv(sockfd, resp, sizeof(resp) - 1, 0);
+
+	if (resp_len > 0)
+	{
+		resp[resp_len] = '\0';
+		LOG_DEBUG("Response to %s: %s", cmd, resp);
+
+		if (type == CMD_GET_CONFIG)
+    		{
+        		strncpy(hostapd_config_ack, resp, sizeof(hostapd_config_ack) - 1);
+        		hostapd_config_ack[sizeof(hostapd_config_ack) - 1] = '\0';
+    		}
+	}
+	else if (resp_len == 0)
+	{
+		LOG_WARN("recv(%s) returned 0: No data received", cmd);
+		return -1;
+	}
+	else
+	{
+		LOG_WARN("recv(%s) failed: %s", cmd, strerror(errno));
+		return -1;
+	}
+
+	return 0;
+}
+
 /* Function: hostapd_listener_init()
  * ------------------------------------------
  *
@@ -49,11 +115,12 @@ int hostapd_listener_init()
 	
 	LOG_DEBUG("Initializing hostapd listener...");
 
-	sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
+	sockfd = create_socket(AF_UNIX, SOCK_DGRAM, 0); 
+	LOG_DEBUG("hostapd socket created: fd=%d", sockfd);
 
 	if (sockfd < 0) 
 	{
-		LOG_ERROR("socket() failed: %s", strerror(errno));
+		LOG_ERROR("Failed to create UNIX socket");
 		return -1;
 	}
 	LOG_DEBUG("Created socket with fd=%d", sockfd);
@@ -71,8 +138,8 @@ int hostapd_listener_init()
         LOG_DEBUG("[SOCKET] CLI socket path cleaned");
 
 	LOG_DEBUG("Client path set to %s", client_path);
-
-	if (bind(sockfd, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0) 
+	
+	if (bind(sockfd, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0)
 	{
 		LOG_ERROR("bind() failed: %s", strerror(errno));
 		close(sockfd);
@@ -84,112 +151,22 @@ int hostapd_listener_init()
 	remote_addr.sun_family = AF_UNIX;
 	strncpy(remote_addr.sun_path, socket_path, sizeof(remote_addr.sun_path) - 1);
 
-	LOG_DEBUG("Attempting to send ATTACH command to %s", socket_path);
-
-	const char *attach_cmd = "ATTACH";
-
-	ssize_t attach_sent = sendto(sockfd, attach_cmd, strlen(attach_cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
-
-    	if (attach_sent < 0)
-    	{
-        	LOG_ERROR("sendto(ATTACH) failed: %s", strerror(errno));
-        	close(sockfd);
-        	
-		if (unlink_socket_path(client_path) != 0)
-        	{
-                	LOG_ERROR("[SOCKET] Could not clean up old socket. Aborting...");
-                	return -1;
-        	}
-        	LOG_DEBUG("[SOCKET] CLI socket path cleaned");
-		
-		return -1;
-    	}
-	LOG_DEBUG("ATTACH command sent successfully");
-
-    	char attach_resp[128] = {0};
-    	
-	ssize_t resp_len = recv(sockfd, attach_resp, sizeof(attach_resp) - 1, 0);
-    	
-	if (resp_len > 0)
-    	{
-        	attach_resp[resp_len] = '\0';
-        	LOG_DEBUG("ATTACH Response: %s", attach_resp);
-    	}
-    	else
-    	{
-        	LOG_WARN("recv(ATTACH) failed: %s", strerror(errno));
-    	}
-
-	const char *cmd = "STATUS";
-	LOG_DEBUG("Sending STATUS command");
-
-	ssize_t status_sent = sendto(sockfd, cmd, strlen(cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
-	
-	if (status_sent < 0)
+	if (send_hostapd_command(sockfd, CMD_ATTACH) != 0) 
 	{
-		LOG_ERROR("sendto(STATUS) failed: %s", strerror(errno));
-		close(sockfd);
-		
-		if (unlink_socket_path(client_path) != 0)
-        	{
-                	LOG_ERROR("[SOCKET] Could not clean up old socket. Aborting...");
-                	return -1;
-        	}
-        	LOG_DEBUG("[SOCKET] CLI socket path cleaned");
-		
-		sockfd = -1;
-		return -1;
+    		LOG_ERROR("Failed to send ATTACH command to hostapd");
+    		return -1;
 	}
 
-	LOG_INFO("Connected to hostapd socket and sent STATUS");
-
-	char ack[128] = {0};
-	
-	ssize_t ack_len = recv(sockfd, ack, sizeof(ack)-1, 0);
-	
-	if (ack_len > 0) 
-	{
-		ack[ack_len] = '\0';
-		LOG_DEBUG("Received after STATUS: %s", ack);
-	} 
-	else 
-	{
-		LOG_WARN("recv(STATUS ACK) failed: %s", strerror(errno));
-	}
-
-	const char *config_cmd = "GET_CONFIG";
-        LOG_DEBUG("Sending GET_CONFIG command");
-
-        ssize_t config_sent = sendto(sockfd, config_cmd, strlen(config_cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
-
-        if (config_sent < 0)
+        if (send_hostapd_command(sockfd, CMD_STATUS) != 0)
         {
-                LOG_ERROR("sendto(GET_CONFIG) failed: %s", strerror(errno));
-                close(sockfd);
-
-                if (unlink_socket_path(client_path) != 0)
-                {
-                        LOG_ERROR("[SOCKET] Could not clean up old socket. Aborting...");
-                        return -1;
-                }
-                LOG_DEBUG("[SOCKET] CLI socket path cleaned");
-
-                sockfd = -1;
+                LOG_ERROR("Failed to send STATUS command to hostapd");
                 return -1;
         }
 
-        LOG_INFO("GET_CONFIG command sent!");
-
-        ssize_t hostapd_ack_len = recv(sockfd, hostapd_config_ack, sizeof(hostapd_config_ack)-1, 0);
-
-        if (hostapd_ack_len > 0)
+        if (send_hostapd_command(sockfd, CMD_GET_CONFIG) != 0)
         {
-                hostapd_config_ack[hostapd_ack_len] = '\0';
-                LOG_DEBUG("Received after GET_CONFIG: %s", hostapd_config_ack);
-        }
-        else
-        {
-                LOG_WARN("recv(GET_CONFIG ACK) failed: %s", strerror(errno));
+                LOG_ERROR("Failed to send GET_CONFIG command to hostapd");
+                return -1;
         }
 
 	return 0;
@@ -210,59 +187,52 @@ int get_connected_clients()
     	if (sockfd < 0)
     	{
         	LOG_ERROR("[SOCKET] Hostapd socket not initialized");
-        	return -1;
+        	return 0;
     	}
 	LOG_DEBUG("[SOCKET] Hostapd socket initialized!");
 
-    	const char *cmd = "STA-FIRST";
-    
+	if (get_hostapd_socket_path(socket_path, sizeof(socket_path)) != 0)
+        {
+                LOG_ERROR("Failed to send LIST_STA");
+                return 0;
+        }
+
 	struct sockaddr_un remote_addr;	
 	memset(&remote_addr, 0, sizeof(remote_addr));
         remote_addr.sun_family = AF_UNIX;
         strncpy(remote_addr.sun_path, socket_path, sizeof(remote_addr.sun_path) - 1);
 
-	if (get_hostapd_socket_path(socket_path, sizeof(socket_path)) != 0)
-    	{
-        	LOG_ERROR("Failed to send STA-FIRST");
-        	return -1;
-    	}
-	LOG_DEBUG("[get_connected_clients] Sending STA-FIRST to %s", remote_addr.sun_path);
+	const char *cmd = "LIST_STA";
+	LOG_DEBUG("[get_connected_clients] Sending LIST_STA to %s", remote_addr.sun_path);
 
         if (sendto(sockfd, cmd, strlen(cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) < 0)
         {
-                LOG_ERROR("Failed to send STA-FIRST: %s", strerror(errno));
-                return -1;
+                LOG_ERROR("Failed to send LIST_STA: %s", strerror(errno));
+                return 0;
         }
 
-    	char buf[64] = {0};
-    	int count = 0;
+    	char buf[2048] = {0};
+	ssize_t len = recv(sockfd, buf, sizeof(buf) - 1, 0);
 
-    	while (1)
+	if (len <= 0)
+	{
+		LOG_ERROR("recv(LIST_STA) failed: %s", strerror(errno));
+		return 0;
+	}
+
+	buf[len] = '\0';
+	LOG_DEBUG("LIST_STA response:\n%s", buf);
+
+	int count = 0;
+    	char *line = strtok(buf, "\n");
+    	
+	while (line)
     	{
-        	ssize_t len = recv(sockfd, buf, sizeof(buf) - 1, 0);
-        	if (len <= 0)
-        	{
-            		LOG_WARN("recv failed during STA iteration");
-            		break;
-        	}
-
-        	buf[len] = '\0';
-
-        	if (strncmp(buf, "FAIL", 4) == 0)
-        	{
-            		break;
-        	}
-	
-        	count++;
-
-       		char cmd_next[128] = {0};
-        	snprintf(cmd_next, sizeof(cmd_next), "STA-NEXT %s", buf);
-        	
-		if (sendto(sockfd, cmd_next, strlen(cmd_next), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) < 0)
-        	{
-            		LOG_ERROR("send(STA-NEXT) failed");
-            		break;
-        	}
+        	if (strlen(line) > 0)
+		{
+            		count++;
+		}
+		line = strtok(NULL, "\n");
     	}
 
     	LOG_DEBUG("Total connected clients via hostapd: %d", count);

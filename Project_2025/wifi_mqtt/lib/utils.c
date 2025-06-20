@@ -74,7 +74,7 @@ char *read_json_file(const char *filename)
 }
 
 
-/* Function: parse_mqtt_config()
+/* Function: parse_mqtt_json_config_file()
  * ------------------------------
  *
  * Function to parse the mqtt configuration from json
@@ -87,7 +87,7 @@ char *read_json_file(const char *filename)
  */
 
 
-int parse_mqtt_config(const char *filename, mqtt_json *config) 
+int parse_mqtt_json_config_file(const char *filename, mqtt_json *config) 
 {
 	LOG_DEBUG("Starting MQTT config parsing from file: %s", filename);
 
@@ -269,32 +269,40 @@ char *build_sysinfo_json(const char *hostapd_config)
     	char buf[128] = {0};
     	double cpu_usage = 0.0;
     	double mem_usage = 0.0;
-
+	unsigned long long int user = 0, nice = 0, system = 0, idle = 0;
+    	unsigned long long int user2 = 0, nice2 = 0, system2 = 0, idle2 = 0;
+    
 	int clients = get_connected_clients();
 
     	fp = fopen("/proc/stat", "r");
-    	if (fp)
+
+	if (fp)
     	{
-        	unsigned long long int user, nice, system, idle;
-        	fscanf(fp, "cpu %llu %llu %llu %llu", &user, &nice, &system, &idle);
+               	fscanf(fp, "cpu %llu %llu %llu %llu", &user, &nice, &system, &idle);
         	fclose(fp);
 		LOG_DEBUG("First read - user: %llu, nice: %llu, system: %llu, idle: %llu", user, nice, system, idle);
 
         	sleep(1);
         	
 		fp = fopen("/proc/stat", "r");
-        	unsigned long long int user2, nice2, system2, idle2;
-        	fscanf(fp, "cpu %llu %llu %llu %llu", &user2, &nice2, &system2, &idle2);
-        	fclose(fp);
-		LOG_DEBUG("Second read - user: %llu, nice: %llu, system: %llu, idle: %llu", user2, nice2, system2, idle2);
+        	if(fp)
+		{
+        		fscanf(fp, "cpu %llu %llu %llu %llu", &user2, &nice2, &system2, &idle2);
+        		fclose(fp);
+			LOG_DEBUG("Second read - user: %llu, nice: %llu, system: %llu, idle: %llu", user2, nice2, system2, idle2);
 
-        	double total1 = user + nice + system + idle;
-        	double total2 = user2 + nice2 + system2 + idle2;
-        	double delta_total = total2 - total1;
-        	double delta_idle = idle2 - idle;
+        		double total1 = user + nice + system + idle;
+        		double total2 = user2 + nice2 + system2 + idle2;
+        		double delta_total = total2 - total1;
+        		double delta_idle = idle2 - idle;
 
-        	cpu_usage = 100.0 * (delta_total - delta_idle) / delta_total;
-    		LOG_DEBUG("CPU Usage: %.2f%%", cpu_usage);
+        		cpu_usage = 100.0 * (delta_total - delta_idle) / delta_total;
+    			LOG_DEBUG("CPU Usage: %.2f%%", cpu_usage);
+		}
+		else
+        	{
+            		LOG_ERROR("Failed to open /proc/stat second read");
+        	}
 	}
 	else
         {
@@ -328,19 +336,19 @@ char *build_sysinfo_json(const char *hostapd_config)
                 {
                         LOG_ERROR("Failed to read total memory from /proc/meminfo");
                 }
-
-        	mem_usage = 100.0 * (mem_total - mem_free) / mem_total;
-    	}
+      	}
 	else
         {
                 LOG_ERROR("Failed to open /proc/meminfo for memory usage");
         }
 
+	unsigned long mem_used_kb = mem_total - mem_free;
+
     	cJSON *root = cJSON_CreateObject();
 	cJSON_AddNumberToObject(root, "clients", clients);
     	cJSON_AddStringToObject(root, "hostname", hostname);
     	cJSON_AddNumberToObject(root, "cpu", cpu_usage);
-    	cJSON_AddNumberToObject(root, "memory", mem_usage);
+    	cJSON_AddNumberToObject(root, "memory", mem_used_kb);
 
 	if (hostapd_config && strlen(hostapd_config) > 0)
     	{
@@ -366,7 +374,7 @@ char *build_sysinfo_json(const char *hostapd_config)
     			line = strtok(NULL, "\n");
 		}
 
-		cJSON_AddItemToObject(root, "hostapd_config", config_obj);
+		cJSON_AddItemToObject(root, "ap_details", config_obj);
 
     	}
 
