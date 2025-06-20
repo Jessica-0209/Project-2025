@@ -12,6 +12,7 @@
 int sockfd = -1;
 char socket_path[128] = {0};
 static char client_path[128] = {0}; 
+char hostapd_config_ack[128] = {0};
 
 /* Function: hostapd_listener_init()
  * ------------------------------------------
@@ -23,8 +24,6 @@ static char client_path[128] = {0};
  *
  * Returns: 0 on success, -1 on failure
  */
-
-struct sockaddr_un remote_addr;
 
 int hostapd_listener_init() 
 {
@@ -46,7 +45,7 @@ int hostapd_listener_init()
 	}
 
 	struct sockaddr_un local_addr;
-//	struct sockaddr_un remote_addr;
+	struct sockaddr_un remote_addr;
 	
 	LOG_DEBUG("Initializing hostapd listener...");
 
@@ -89,7 +88,9 @@ int hostapd_listener_init()
 
 	const char *attach_cmd = "ATTACH";
 
-    	if (sendto(sockfd, attach_cmd, strlen(attach_cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) < 0)
+	ssize_t attach_sent = sendto(sockfd, attach_cmd, strlen(attach_cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+
+    	if (attach_sent < 0)
     	{
         	LOG_ERROR("sendto(ATTACH) failed: %s", strerror(errno));
         	close(sockfd);
@@ -122,9 +123,9 @@ int hostapd_listener_init()
 	const char *cmd = "STATUS";
 	LOG_DEBUG("Sending STATUS command");
 
-	ssize_t sent = sendto(sockfd, cmd, strlen(cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+	ssize_t status_sent = sendto(sockfd, cmd, strlen(cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
 	
-	if (sent < 0)
+	if (status_sent < 0)
 	{
 		LOG_ERROR("sendto(STATUS) failed: %s", strerror(errno));
 		close(sockfd);
@@ -159,9 +160,9 @@ int hostapd_listener_init()
 	const char *config_cmd = "GET_CONFIG";
         LOG_DEBUG("Sending GET_CONFIG command");
 
-        ssize_t sent = sendto(sockfd, config_cmd, strlen(config_cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+        ssize_t config_sent = sendto(sockfd, config_cmd, strlen(config_cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
 
-        if (sent < 0)
+        if (config_sent < 0)
         {
                 LOG_ERROR("sendto(GET_CONFIG) failed: %s", strerror(errno));
                 close(sockfd);
@@ -178,8 +179,6 @@ int hostapd_listener_init()
         }
 
         LOG_INFO("GET_CONFIG command sent!");
-
-        char hostapd_config_ack[128] = {0};
 
         ssize_t hostapd_ack_len = recv(sockfd, hostapd_config_ack, sizeof(hostapd_config_ack)-1, 0);
 
@@ -216,7 +215,8 @@ int get_connected_clients()
 	LOG_DEBUG("[SOCKET] Hostapd socket initialized!");
 
     	const char *cmd = "STA-FIRST";
-    	
+    
+	struct sockaddr_un remote_addr;	
 	memset(&remote_addr, 0, sizeof(remote_addr));
         remote_addr.sun_family = AF_UNIX;
         strncpy(remote_addr.sun_path, socket_path, sizeof(remote_addr.sun_path) - 1);

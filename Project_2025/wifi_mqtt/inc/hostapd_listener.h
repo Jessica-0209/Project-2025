@@ -7,6 +7,7 @@
 #define EVENT_BUF_SIZE 1024
 
 extern int sockfd;
+extern char hostapd_config_ack[128];
 
 int hostapd_listener_init();
 

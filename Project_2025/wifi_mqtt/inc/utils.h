@@ -18,7 +18,7 @@ int parse_mqtt_config(const char *filename, mqtt_json *config);
 
 char *build_event_json(const char *event_str, const char *ssid);
 
-char *build_sysinfo_json();
+char *build_sysinfo_json(const char *hostapd_config);
 
 #endif
 

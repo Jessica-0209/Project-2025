@@ -382,7 +382,7 @@ static int run_publisher()
 		
 		if (now - last_sysinfo_sent >= 10)
 		{
-    			char *sysinfo_json = build_sysinfo_json();
+    			char *sysinfo_json = build_sysinfo_json(hostapd_config_ack);
     			
 			if (sysinfo_json)
     			{

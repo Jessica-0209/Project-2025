@@ -260,7 +260,7 @@ char *build_event_json(const char *event_str, const char *ssid)
  *
  */
 
-char *build_sysinfo_json()
+char *build_sysinfo_json(const char *hostapd_config)
 {
     	char hostname[128] = {0};
     	gethostname(hostname, sizeof(hostname));
