@@ -45,6 +45,12 @@ $(BIN_DIR)/cli_client: tools/cli_client.c lib/log.c
 
 cli_client: $(BIN_DIR)/cli_client
 
+# Copy hostapd.conf to bin directory
+$(BIN_DIR)/hostapd.conf: hostapd/hostapd.conf
+	cp $< $@
+
+hostapd_config: $(BIN_DIR)/hostapd.conf
+
 clean:
 	rm -rf $(BUILD_DIR)/*.o $(TARGET)
 
