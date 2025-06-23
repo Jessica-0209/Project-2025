@@ -199,14 +199,33 @@ char *build_event_json(const char *event_str, const char *ssid)
     	char mac[18] = {0};
     	char event_type[64] = {0};
 
-    	if (sscanf(event_str, "<%*d>%63s %17s", event_type, mac) != 2)
-    	{
-		LOG_ERROR("Failed to parse event string: %s", event_str);
-        	return NULL;
-    	}
+ 	if (strstr(event_str, "AP-STA-CONNECTED") || strstr(event_str, "AP-STA-DISCONNECTED"))
+	{
+    		int matched = sscanf(event_str, "<%*d>%63s %17s", event_type, mac);
+    		
+    		if (matched == 2)
+    		{	
+        		LOG_DEBUG("Parsed event_type: %s, MAC: %s", event_type, mac);
+    		}
+    		else
+    		{	
+        		LOG_WARN("Expected MAC but not found: %s", event_str);
+        		strcpy(mac, "N/A");
+    		}
+	}
+	else
+	{
+       		int matched = sscanf(event_str, "<%*d>%63[^\n]", event_type);
+    		if (matched < 1)
+    		{
+        		LOG_ERROR("Failed to parse event string: %s", event_str);
+        		return NULL;
+    		}
 
-	LOG_DEBUG("Parsed event_type: %s, MAC: %s", event_type, mac);
-
+    		LOG_DEBUG("Parsed event_type: %s (System message)", event_type);
+    		strcpy(mac, "N/A");
+	}
+	
     	time_t now = time(NULL);
     	struct tm *t = localtime(&now);
 	char timestamp[64] = {0};

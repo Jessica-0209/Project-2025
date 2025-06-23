@@ -205,6 +205,7 @@ int get_connected_clients()
 	const char *cmd = "LIST_STA";
 	LOG_DEBUG("[get_connected_clients] Sending LIST_STA to %s", remote_addr.sun_path);
 
+	LOG_DEBUG("Sending hostapd command: [%s]", cmd);
         if (sendto(sockfd, cmd, strlen(cmd), 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) < 0)
         {
                 LOG_ERROR("Failed to send LIST_STA: %s", strerror(errno));
