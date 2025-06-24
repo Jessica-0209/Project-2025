@@ -125,6 +125,15 @@ int hostapd_listener_init()
 	}
 	LOG_DEBUG("Created socket with fd=%d", sockfd);
 
+	struct timeval timeout;
+        timeout.tv_sec = 2;
+        timeout.tv_usec = 0;
+
+        if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+        {
+                LOG_WARN("Failed to set socket receive timeout: %s", strerror(errno));
+        }
+
 	memset(&local_addr, 0, sizeof(local_addr));
 	local_addr.sun_family = AF_UNIX;
 	snprintf(client_path, sizeof(client_path), "/tmp/wifi_mqtt_socket_%d", getpid());
@@ -260,13 +269,18 @@ ssize_t hostapd_listener_receive(char *buffer, size_t bufsize)
     	}
 
 	LOG_DEBUG("Waiting to receive data from hostapd...");
-
-    	ssize_t len = recv(sockfd, buffer, bufsize - 1, 0);
-    	if (len > 0) 
+	
+	ssize_t len = recv(sockfd, buffer, bufsize - 1, 0);
+    
+	if (len > 0) 
 	{
 		buffer[len] = '\0';
 		LOG_DEBUG("Received message: %s", buffer);
 	}
+	else if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+    	{
+        // Timeout occurred, not an error, caller will handle
+    	}
 	else
 	{
 		LOG_WARN("recv() failed: %s", strerror(errno));

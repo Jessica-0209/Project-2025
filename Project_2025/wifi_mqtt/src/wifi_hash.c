@@ -52,7 +52,7 @@ unsigned int hash(const char* str)
  * Returns: 0 if updated, 1 if inserted, -1 on malloc failure.
  */
 
-int insert_or_update_the_hash_table(const char* mac, const char* ssid, const char* event_type, const char* timestamp)
+int insert_or_update_the_hash_table(const char* mac, const char* hostname, const char* ssid, const char* event_type, const char* timestamp)
 {
     	unsigned int index = hash(mac);
 	LOG_DEBUG("[HASH] Inserting/updating MAC %s at index %u", mac, index);
@@ -66,16 +66,17 @@ int insert_or_update_the_hash_table(const char* mac, const char* ssid, const cha
             		LOG_DEBUG("[HASH] Found existing MAC %s — updating values", mac);
 
             		strncpy(current->ssid, ssid, sizeof(current->ssid));
+			strncpy(current->hostname, hostname, sizeof(current->hostname));
             		strncpy(current->event_type, event_type, sizeof(current->event_type));
             		strncpy(current->timestamp, timestamp, sizeof(current->timestamp));
 
-            		LOG_INFO("[HASH] Updated event for %s: %s on SSID %s\n", mac, event_type, ssid);
+            		LOG_INFO("[HASH] Updated event for %s: %s on SSID %s (Hostname: %s)\n", mac, event_type, ssid, hostname);
             		return 0;
         	}
         	current = current->next;
     	}
 
-    	LOG_DEBUG("[HASH] MAC %s not found — inserting new node", mac);
+    	LOG_DEBUG("[HASH] MAC %s not found. Inserting new node", mac);
 
     	Wifi_Event* new_node = (Wifi_Event* )malloc(sizeof(Wifi_Event));
     	if (!new_node)
@@ -85,13 +86,14 @@ int insert_or_update_the_hash_table(const char* mac, const char* ssid, const cha
     	}
 
     	strncpy(new_node->mac, mac, sizeof(new_node->mac));
+	strncpy(new_node->hostname, hostname, sizeof(new_node->hostname));
     	strncpy(new_node->ssid, ssid, sizeof(new_node->ssid));
     	strncpy(new_node->event_type, event_type, sizeof(new_node->event_type));
     	strncpy(new_node->timestamp, timestamp, sizeof(new_node->timestamp));
     	new_node->next = hash_table[index];
     	hash_table[index] = new_node;
 
-    	LOG_INFO("[HASH] Inserted event for %s: %s on SSID %s\n", mac, event_type, ssid);
+    	LOG_INFO("[HASH] Inserted event for %s: %s on SSID %s (Hostname: %s)\n", mac, event_type, ssid, hostname);
 	return 1;
 }
 
@@ -121,15 +123,16 @@ void parse_json_and_insert(const char* json_str)
 	}
 
 	cJSON* mac = cJSON_GetObjectItemCaseSensitive(root, "mac");
+	cJSON* hostname = cJSON_GetObjectItemCaseSensitive(root, "hostname");
 	cJSON* ssid = cJSON_GetObjectItemCaseSensitive(root, "ssid");
 	cJSON* event_type = cJSON_GetObjectItemCaseSensitive(root, "event_type");
 	cJSON* timestamp = cJSON_GetObjectItemCaseSensitive(root, "timestamp");
 
-	if (cJSON_IsString(mac) && cJSON_IsString(ssid) && cJSON_IsString(event_type) && cJSON_IsString(timestamp))
+	if (cJSON_IsString(mac) && cJSON_IsString(hostname) && cJSON_IsString(ssid) && cJSON_IsString(event_type) && cJSON_IsString(timestamp))
 	{
-		LOG_DEBUG("[HASH] Extracted MAC: %s, SSID: %s, Event: %s, Time: %s", mac->valuestring, ssid->valuestring, event_type->valuestring, timestamp->valuestring);
+		LOG_DEBUG("[HASH] Extracted MAC: %s, Hostname: %s, SSID: %s, Event: %s, Time: %s", mac->valuestring, hostname->valuestring, ssid->valuestring, event_type->valuestring, timestamp->valuestring);
 
-		insert_or_update_the_hash_table(mac->valuestring, ssid->valuestring, event_type->valuestring, timestamp->valuestring);	
+		insert_or_update_the_hash_table(mac->valuestring, hostname->valuestring, ssid->valuestring, event_type->valuestring, timestamp->valuestring);	
 	}
 	else
 	{
@@ -161,7 +164,7 @@ void display_wifi_table()
             		printf("\nBucket %d:\n", i);
             		while (current) 
 	    		{
-                		printf("  MAC: %s | SSID: %s | Event: %s | Time: %s\n", current->mac, current->ssid, current->event_type, current->timestamp);
+                		printf("  MAC: %s | Hostname: %s | SSID: %s | Event: %s | Time: %s\n", current->mac, current->hostname, current->ssid, current->event_type, current->timestamp);
                 		current = current->next;
             		}
         	}
@@ -195,7 +198,7 @@ void get_wifi_table_as_string(char* output, size_t max_len)
             		
 			while (current) 
 	    		{
-                		offset += snprintf(output + offset, max_len - offset, "  MAC: %s | SSID: %s | Event: %s | Time: %s\n", current->mac, current->ssid, current->event_type, current->timestamp);
+                		offset += snprintf(output + offset, max_len - offset, "  MAC: %s | Hostname: %s | SSID: %s | Event: %s | Time: %s\n", current->mac, current->hostname, current->ssid, current->event_type, current->timestamp);
                 		current = current->next;
             		}
         	}

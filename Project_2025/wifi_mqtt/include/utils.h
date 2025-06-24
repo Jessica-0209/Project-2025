@@ -4,6 +4,8 @@
 #define MAX_TOPICS 5
 #define MAX_TOPIC_LENGTH 128
 
+#include <stdlib.h>
+
 char *read_file(const char *filename);
 
 typedef struct
@@ -15,6 +17,8 @@ typedef struct
 } mqtt_json;
 
 int parse_mqtt_json_config_file(const char *filename, mqtt_json *config);
+
+int get_hostname_from_mac(const char *mac, char *hostname, size_t hostname_len);
 
 char *build_event_json(const char *event_str, const char *ssid);
 

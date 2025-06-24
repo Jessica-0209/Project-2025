@@ -1,14 +1,18 @@
 #include "utils.h"
 #include "log.h"
 #include "hostapd_listener.h"
+#include "network.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <netdb.h>
+#include <arpa/inet.h>
 #include <string.h>
 #include <time.h>
 #include <cjson/cJSON.h> 
+
 
 /* Function: read_json_file()
  * ------------------------------------------
@@ -198,19 +202,28 @@ char *build_event_json(const char *event_str, const char *ssid)
 
     	char mac[18] = {0};
     	char event_type[64] = {0};
+	char hostname[128] = {0};
 
- 	if (strstr(event_str, "AP-STA-CONNECTED") || strstr(event_str, "AP-STA-DISCONNECTED"))
+ 	//if (strstr(event_str, "AP-STA-CONNECTED") || strstr(event_str, "AP-STA-DISCONNECTED"))
+ 	if (strstr(event_str, "HOSTAPD-AP-STA-CONNECTED"))
 	{
     		int matched = sscanf(event_str, "<%*d>%63s %17s", event_type, mac);
     		
     		if (matched == 2)
     		{	
         		LOG_DEBUG("Parsed event_type: %s, MAC: %s", event_type, mac);
+
+			if (get_hostname_from_mac(mac, hostname, sizeof(hostname)) != 0)
+            		{
+                		strncpy(hostname, "Unknown", sizeof(hostname));
+            		}
+			
     		}
     		else
     		{	
         		LOG_WARN("Expected MAC but not found: %s", event_str);
         		strcpy(mac, "N/A");
+			strcpy(hostname, "Unknown");
     		}
 	}
 	else
@@ -224,6 +237,7 @@ char *build_event_json(const char *event_str, const char *ssid)
 
     		LOG_DEBUG("Parsed event_type: %s (System message)", event_type);
     		strcpy(mac, "N/A");
+		strcpy(hostname, "Unknown");
 	}
 	
     	time_t now = time(NULL);
@@ -241,7 +255,8 @@ char *build_event_json(const char *event_str, const char *ssid)
 
     	cJSON_AddStringToObject(root, "event_type", event_type);
     	cJSON_AddStringToObject(root, "mac", mac);
-	
+	cJSON_AddStringToObject(root, "hostname", hostname); 
+
 	if (ssid)
 	{
         	cJSON_AddStringToObject(root, "ssid", ssid);

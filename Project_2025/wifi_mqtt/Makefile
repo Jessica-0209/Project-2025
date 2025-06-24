@@ -1,13 +1,13 @@
 # Compiler and flags
 CC = gcc
-CFLAGS = -Wall -Iinc -I/usr/include/cjson -I/usr/include/libnl3 -g
+CFLAGS = -Wall -Iinclude -I/usr/include/cjson -I/usr/include/libnl3 -g
 
 # Libraries (add mosquitto and cjson)
 LIBS = -lmosquitto -lcjson -lpthread -lnl-3 -lnl-genl-3
 
 # Directories
 SRC_DIR = src
-INC_DIR = inc
+INC_DIR = include
 LIB_DIR = lib
 BUILD_DIR = build
 BIN_DIR = bin
@@ -40,16 +40,10 @@ $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
 # Compile CLI client separately (includes logging)
-$(BIN_DIR)/cli_client: tools/cli_client.c lib/log.c lib/network.c
-	$(CC) $(CFLAGS) tools/cli_client.c lib/log.c lib/network.c -o $(BIN_DIR)/cli_client $(LIBS)
+$(BIN_DIR)/client_details: tools/cli_client.c lib/log.c lib/network.c
+	$(CC) $(CFLAGS) tools/cli_client.c lib/log.c lib/network.c -o $(BIN_DIR)/client_details $(LIBS)
 
-cli_client: $(BIN_DIR)/cli_client
-
-# Copy hostapd.conf to bin directory
-$(BIN_DIR)/hostapd.conf: hostapd/hostapd.conf
-	cp $< $@
-
-hostapd_config: $(BIN_DIR)/hostapd.conf
+client_details: $(BIN_DIR)/client_details
 
 clean:
 	rm -rf $(BUILD_DIR)/*.o $(TARGET)

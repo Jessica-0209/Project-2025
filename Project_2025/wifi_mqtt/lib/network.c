@@ -14,6 +14,7 @@
 
 #define HOSTAPD_DIR "/var/run/hostapd"
 #define MAX_PATH_LEN 128
+#define LEASES_FILE "/tmp/dhcp.leases"
 
 /* Function: create_unix_socket()
  * --------------------------------------------------
@@ -142,6 +143,38 @@ int get_hostapd_socket_path(char *socket_path, size_t max_len)
 	LOG_INFO("[HOSTAPD] Computed socket path: %s", socket_path);
 
     	return 0;
+}
+
+int get_hostname_from_mac(const char *mac, char *hostname, size_t hostname_len)
+{
+
+        FILE *file = fopen(LEASES_FILE, "r");
+
+        if (!file)
+        {
+                perror("Failed to open DHCP leases file");
+                return -1;
+        }
+
+        char line[256] = {0};
+        while (fgets(line, sizeof(line), file))
+        {
+                char client_mac[32] = {0};
+                char client_hostname[128] = {0};
+                if (sscanf(line, "%*s %31s %*s %127s %*s", client_mac, client_hostname) == 2)
+                {
+                        if (strcasecmp(mac, client_mac) == 0)
+                        {
+                                strncpy(hostname, client_hostname, hostname_len - 1);
+                                hostname[hostname_len - 1] = '\0';
+                                fclose(file);
+                                return 0;
+                        }
+                }
+        }
+
+        fclose(file);
+        return -1;
 }
 
 /*

@@ -3,6 +3,7 @@
 #include <signal.h>
 #include <string.h>
 #include <cJSON.h>
+#include <errno.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -27,7 +28,7 @@
 
 static volatile int g_keep_running = 1;
 
-void int_handler(int dummy) 
+void int_handler(int sig) 
 {
     	g_keep_running = 0;
 }
@@ -263,21 +264,23 @@ void on_message(struct mosquitto *mosq, void *userdata, const struct mosquitto_m
 		memset(&event, 0, sizeof(Wifi_Event));
 
         	cJSON *mac = cJSON_GetObjectItem(root, "mac");
-        	cJSON *ssid = cJSON_GetObjectItem(root, "ssid");
+		cJSON *hostname = cJSON_GetObjectItem(root, "hostname");
+		cJSON *ssid = cJSON_GetObjectItem(root, "ssid");
         	cJSON *event_type = cJSON_GetObjectItem(root, "event_type");
         	cJSON *timestamp = cJSON_GetObjectItem(root, "timestamp");
 
-        	if (mac && ssid && event_type && timestamp)
+        	if (mac && hostname && ssid && event_type && timestamp)
         	{
-			LOG_DEBUG("Parsed fields - MAC: %s, SSID: %s, Event Type: %s, Timestamp: %s", mac->valuestring, ssid->valuestring, event_type->valuestring, timestamp->valuestring);
+			LOG_DEBUG("Parsed fields - MAC: %s, Hostname: %s, SSID: %s, Event Type: %s, Timestamp: %s", mac->valuestring, hostname->valuestring, ssid->valuestring, event_type->valuestring, timestamp->valuestring);
 
             		strncpy(event.mac, mac->valuestring, sizeof(event.mac));
+			strncpy(event.hostname, hostname->valuestring, sizeof(event.hostname));
             		strncpy(event.ssid, ssid->valuestring, sizeof(event.ssid));
             		strncpy(event.event_type, event_type->valuestring, sizeof(event.event_type));
             		strncpy(event.timestamp, timestamp->valuestring, sizeof(event.timestamp));
 
 			LOG_DEBUG("Inserting event into hash table...");
-            		insert_or_update_the_hash_table(event.mac, event.ssid, event.event_type, event.timestamp);
+            		insert_or_update_the_hash_table(event.mac, event.hostname, event.ssid, event.event_type, event.timestamp);
 			LOG_DEBUG("Event inserted into hash table.");
         	}
         	
@@ -377,6 +380,20 @@ static int run_publisher()
                               	LOG_WARN("Failed to parse event to JSON: %s", event_buf);
                       	}
         	}
+    		else if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+                {
+                        continue;
+                }
+		else if (len == 0)
+    		{
+               		LOG_WARN("Hostapd socket closed.");
+        		break;
+    		}
+    		else
+    		{
+        		LOG_ERROR("Error receiving from hostapd.");
+        		break;
+    		}
 		
 		static time_t last_sysinfo_sent = 0;
 		time_t now = time(NULL);
@@ -400,6 +417,7 @@ static int run_publisher()
 		}	
     	}
 
+	LOG_DEBUG("Publisher exiting cleanly...");
     	mqtt_client_cleanup();
     	hostapd_listener_cleanup();
 	LOG_DEBUG("Publisher cleanup complete");
@@ -588,11 +606,6 @@ int main(int argc, char *argv[])
 
     	free(mqtt_config.mqtt_host);
 	LOG_DEBUG("Host freed!");
-    	
-	for (int i = 0; i < mqtt_config.topic_count; i++) 
-	{
-    		free(mqtt_config.mqtt_topics[i]);
-	}
 	
 	LOG_DEBUG("All topics freed!");
 
