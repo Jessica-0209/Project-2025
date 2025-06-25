@@ -203,9 +203,32 @@ char *build_wifi_event_json(const char *event_str, const char *ssid)
     	char mac[18] = {0};
     	char event_type[64] = {0};
 	char hostname[128] = {0};
+	int matched = 0;
 
-	//if (strstr(event_str, "AP-STA-CONNECTED") || strstr(event_str, "AP-STA-DISCONNECTED"))
- 	if (strstr(event_str, "HOSTAPD-AP-STA-CONNECTED"))
+    	matched = sscanf(event_str, "<%*d>%63s %17s", event_type, mac);
+
+    	if (matched == 2)
+    	{
+        	LOG_DEBUG("Parsed event_type: %s, MAC: %s", event_type, mac);
+
+        	if (get_hostname_from_mac(mac, hostname, sizeof(hostname)) != 0)
+        	{
+            		strncpy(hostname, "Unknown", sizeof(hostname));
+        	}
+    	}
+    	else if (matched == 1)
+    	{	
+        	LOG_DEBUG("Parsed event_type: %s (No MAC found)", event_type);
+        	strcpy(mac, "N/A");
+        	strcpy(hostname, "Unknown");
+    	}
+    	else
+    	{
+        	LOG_ERROR("Failed to parse event string: %s", event_str);
+        	return NULL;
+    	}
+/*
+	if (strstr(event_str, "AP-STA-CONNECTED") || strstr(event_str, "AP-STA-DISCONNECTED") || strstr(event_str, "EAPOL-4WAY-HS-COMPLETED"))
 	{
     		int matched = sscanf(event_str, "<%*d>%63s %17s", event_type, mac);
     		
@@ -239,7 +262,7 @@ char *build_wifi_event_json(const char *event_str, const char *ssid)
     		strcpy(mac, "N/A");
 		strcpy(hostname, "Unknown");
 	}
-	
+*/	
     	time_t now = time(NULL);
     	struct tm *t = localtime(&now);
 	char timestamp[64] = {0};
