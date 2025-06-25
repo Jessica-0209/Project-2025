@@ -366,7 +366,7 @@ static int run_publisher()
 				LOG_DEBUG("SSID not found, using default");
 			}
 
-                        char *json_payload = build_event_json(event_buf, ssid);
+                        char *json_payload = build_wifi_event_json(event_buf, ssid);
 			
 			if (json_payload)
                        	{
@@ -380,7 +380,7 @@ static int run_publisher()
                               	LOG_WARN("Failed to parse event to JSON: %s", event_buf);
                       	}
         	}
-    		else if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+   /* 		else if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
                 {
                         continue;
                 }
@@ -394,7 +394,7 @@ static int run_publisher()
         		LOG_ERROR("Error receiving from hostapd.");
         		break;
     		}
-		
+*/		
 		static time_t last_sysinfo_sent = 0;
 		time_t now = time(NULL);
 		
@@ -538,6 +538,9 @@ LogLevel get_log_level_from_user(const char *arg)
                 		return LOG_LEVEL_DEBUG;
 			}
 			break;
+		default:
+			printf("Invalid log!\n");
+			exit(1);
     	}
 
     	return LOG_LEVEL_INFO;

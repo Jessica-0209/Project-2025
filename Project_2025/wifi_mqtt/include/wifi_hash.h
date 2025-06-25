@@ -13,8 +13,8 @@ typedef struct Wifi_Event {
 extern Wifi_Event* wifi_hash_table[];
 
 int insert_or_update_the_hash_table(const char* mac, const char* hostname, const char* ssid, const char* event_type, const char* timestamp);
-void display_wifi_table();
+void display_wifi_table(void);
 void get_wifi_table_as_string(char* output, size_t max_len);
-void free_wifi_table();
+void free_wifi_table(void);
 
 #endif

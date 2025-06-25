@@ -74,8 +74,8 @@ int get_wireless_interface(char *iface_name, size_t max_len)
 
     	struct ifconf ifc;
     	struct ifreq ifr[16] = {0};
-    	ifc.ifc_buf = (char *)ifr;
-    	ifc.ifc_len = sizeof(ifr);
+	ifc.ifc_len = sizeof(ifr);
+	ifc.ifc_buf = (char *)ifr;
 
     	if (ioctl(sock, SIOCGIFCONF, &ifc) == -1)
     	{

@@ -24,7 +24,7 @@ Wifi_Event* hash_table[TABLE_SIZE] = {NULL};
 unsigned int hash(const char* str)
 {
 	unsigned long hash = 5381;
-	int c;
+	int c = 0;
 
 	//converting each character of the MAC Address into ASCII to end up with a very big number, then doing mod
 	while((c = *str++))
@@ -150,7 +150,7 @@ void parse_json_and_insert(const char* json_str)
  * Returns: void
  */
 
-void display_wifi_table()
+void display_wifi_table(void)
 {
 	LOG_DEBUG("[HASH] Displaying full Wi-Fi table...");
 
@@ -216,7 +216,7 @@ void get_wifi_table_as_string(char* output, size_t max_len)
  * Returns: void
  */
 
-void free_wifi_table()
+void free_wifi_table(void)
 {
 	for (int i = 0; i < TABLE_SIZE; i++) 
 	{

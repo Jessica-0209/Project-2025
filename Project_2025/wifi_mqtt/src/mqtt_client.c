@@ -101,7 +101,7 @@ int mqtt_client_publish(const char *topic, const char *message)
  * Returns: void
  */
 
-void mqtt_client_cleanup() 
+void mqtt_client_cleanup(void) 
 {
 	LOG_DEBUG("Cleaning up MQTT client");
 

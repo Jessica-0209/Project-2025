@@ -26,13 +26,13 @@ extern command hostapd_cmds;
 
 int send_hostapd_command(const int sockfd, const command_type type);
 
-int hostapd_listener_init();
+int hostapd_listener_init(void);
 
-int get_connected_clients();
+int get_connected_clients(void);
 
 ssize_t hostapd_listener_receive(char *buffer, size_t bufsize);
 
-void hostapd_listener_cleanup();
+void hostapd_listener_cleanup(void);
 
 #endif
 

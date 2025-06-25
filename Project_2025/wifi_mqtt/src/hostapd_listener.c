@@ -91,7 +91,7 @@ int send_hostapd_command(const int sockfd,const command_type type)
  * Returns: 0 on success, -1 on failure
  */
 
-int hostapd_listener_init() 
+int hostapd_listener_init(void) 
 {
 	if (get_hostapd_socket_path(socket_path, sizeof(socket_path)) != 0)
         {
@@ -131,7 +131,7 @@ int hostapd_listener_init()
 
         if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
         {
-                LOG_WARN("Failed to set socket receive timeout: %s", strerror(errno));
+               LOG_WARN("Failed to set socket receive timeout: %s", strerror(errno));
         }
 
 	memset(&local_addr, 0, sizeof(local_addr));
@@ -191,7 +191,7 @@ int hostapd_listener_init()
  *
  */
 
-int get_connected_clients()
+int get_connected_clients(void)
 {
     	if (sockfd < 0)
     	{
@@ -277,10 +277,10 @@ ssize_t hostapd_listener_receive(char *buffer, size_t bufsize)
 		buffer[len] = '\0';
 		LOG_DEBUG("Received message: %s", buffer);
 	}
-	else if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
-    	{
+        else if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+        {
         // Timeout occurred, not an error, caller will handle
-    	}
+        }
 	else
 	{
 		LOG_WARN("recv() failed: %s", strerror(errno));
@@ -299,7 +299,7 @@ ssize_t hostapd_listener_receive(char *buffer, size_t bufsize)
  * Returns: void
  */
 
-void hostapd_listener_cleanup() 
+void hostapd_listener_cleanup(void) 
 {
 	LOG_DEBUG("Cleaning up hostapd listener...");
 

@@ -184,7 +184,7 @@ int parse_mqtt_json_config_file(const char *filename, mqtt_json *config)
     	return 0;
 }
 
-/* Function: build_event_json()
+/* Function: build_wifi_event_json()
  * ------------------------------------------
  *
  * Function to convert a raw Wi-Fi event string and optional SSID into a JSON-formatted string.
@@ -196,7 +196,7 @@ int parse_mqtt_json_config_file(const char *filename, mqtt_json *config)
  *
  */
 
-char *build_event_json(const char *event_str, const char *ssid)
+char *build_wifi_event_json(const char *event_str, const char *ssid)
 {
 	LOG_DEBUG("Building event JSON from string: %s", event_str);
 
@@ -299,10 +299,10 @@ char *build_sysinfo_json(const char *hostapd_config)
     	char hostname[128] = {0};
     	gethostname(hostname, sizeof(hostname));
 	
-    	FILE *fp;
+    	FILE *fp = NULL;
     	char buf[128] = {0};
     	double cpu_usage = 0.0;
-    	double mem_usage = 0.0;
+    	unsigned long mem_usage = 0;
 	unsigned long long int user = 0, nice = 0, system = 0, idle = 0;
     	unsigned long long int user2 = 0, nice2 = 0, system2 = 0, idle2 = 0;
     
@@ -364,7 +364,7 @@ char *build_sysinfo_json(const char *hostapd_config)
 		if (mem_total > 0)
                 {
                         mem_usage = 100.0 * (mem_total - mem_free) / mem_total;
-                        LOG_DEBUG("Memory Usage: %.2f%% (Total: %lu KB, Available: %lu KB)", mem_usage, mem_total, mem_free);
+                        LOG_DEBUG("Memory Usage: %lu (Total: %lu KB, Available: %lu KB)", mem_usage, mem_total, mem_free);
                 }
                 else
                 {

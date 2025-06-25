@@ -34,21 +34,13 @@ make
 ```
 # Steps for Execution
 
-## 1. Start hostapd 
-(on one terminal)
+## 1. Configure Wi-Fi AP Interface and Start Hostapd
+(on one terminal path -> Project-2025/Project_2025/hostap/hostapd)
+
+Dynamically fetch the wireless interface name and configure the AP Interface
 ```
-sudo ./hostapd hostapd.conf
+sudo ./ap_setup
 ```
-## 2. Configure Wi-Fi AP Interface
-```
-sudo systemctl stop NetworkManager
-sudo ip link set <interface> down
-sudo ip addr flush dev <interface>
-sudo ip addr add 192.168.25.1/24 dev <interface>
-sudo iw dev <interface> set type __ap
-sudo ip link set <interface> up
-```
-- Replace <interface> with your network interface name
 
 ## 3. Start MQTT broker
 ```
@@ -63,6 +55,17 @@ sudo ./bin/wifi_mqtt publisher
 - Parses log -> JSON
 - Publishes to topic wifi/events
 
+By default the info level logs will be displayed. If you want to view debug or warning or error logs, 
+```
+sudo ./bin/wifi_mqtt publisher debug
+```
+```
+sudo ./bin/wifi_mqtt publisher warn
+```
+```
+sudo ./bin/wifi_mqtt publisher error
+```
+
 ## 5. Start MQTT subscriber 
 (on another terminal)
 ```
@@ -72,9 +75,27 @@ sudo ./bin/wifi_mqtt subscriber
 - Creates and maintains hash table of devices using MAC address
 - Listens for CLI commands via pthread
 
-## 6. Display Hash Table via CLI 
+By default the info level logs will be displayed. If you want to view debug or warning or error logs,
+```
+sudo ./bin/wifi_mqtt subscriber debug
+```
+```
+sudo ./bin/wifi_mqtt subscriber warn
+```
+```
+sudo ./bin/wifi_mqtt subscriber error
+```
+
+## 6. Display Hash Table via CLI
 (on another terminal)
 ```
-sudo ./bin/cli_client
+sudo ./bin/client_details
 ```
 - Connects to subscriber and prints stored MAC-based event records
+
+## 7. Reconnect to Wifi
+
+Dynamically fetch the wireless interface name and reconnect to Wi-Fi
+```
+sudo ./reconnect_wifi
+```
