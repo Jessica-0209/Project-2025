@@ -204,7 +204,7 @@ char *build_wifi_event_json(const char *event_str, const char *ssid)
     	char event_type[64] = {0};
 	char hostname[128] = {0};
 
- 	//if (strstr(event_str, "AP-STA-CONNECTED") || strstr(event_str, "AP-STA-DISCONNECTED"))
+	//if (strstr(event_str, "AP-STA-CONNECTED") || strstr(event_str, "AP-STA-DISCONNECTED"))
  	if (strstr(event_str, "HOSTAPD-AP-STA-CONNECTED"))
 	{
     		int matched = sscanf(event_str, "<%*d>%63s %17s", event_type, mac);
