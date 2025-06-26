@@ -1,0 +1,4 @@
+# Ignore build files
+wifi_mqtt/build/
+wifi_mqtt/bin/
+

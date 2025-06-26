@@ -1,16 +1,18 @@
 #include "utils.h"
 #include "log.h"
-#include "network.h"
 #include "hostapd_listener.h"
+#include "network.h"
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <net/if.h>
+#include <unistd.h>
 #include <stdarg.h>
+#include <netdb.h>
+#include <arpa/inet.h>
 #include <string.h>
 #include <time.h>
 #include <cjson/cJSON.h> 
-#include <unistd.h>  
+
 
 /* Function: read_json_file()
  * ------------------------------------------
@@ -19,63 +21,64 @@
  *
  * filename: path to the json file
  *
- * Returns: success or failure in reading the json file
+ * Returns: On success, returns a pointer to the buffer containing the json content, and NULL on failure
  */
 
-char *read_json_file(const char *filename)
+char *read_json_file(const char *filename) 
 {
-        LOG_DEBUG("Attempting to open JSON file: %s", filename);
-        FILE *f = fopen(filename, "rb");
+	LOG_DEBUG("Attempting to open JSON file: %s", filename);
+    	FILE *f = fopen(filename, "rb");
 
-        if (!f)
-        {
-                LOG_ERROR("Failed to open file: %s", filename);
-                return NULL;
-        }
+    	if (!f) 
+	{
+		LOG_ERROR("Failed to open file: %s", filename);
+		return NULL;
+	}
 
-        if (fseek(f, 0, SEEK_END) != 0)
+    	if (fseek(f, 0, SEEK_END) != 0)
         {
-                LOG_ERROR("Failed to seek to end of file: %s", filename);
+		LOG_ERROR("Failed to seek to end of file: %s", filename);
                 fclose(f);
                 return NULL;
         }
 
-        long length = ftell(f);
-        if (length < 0)
+    	long length = ftell(f);
+	if (length < 0)
         {
-                LOG_ERROR("Failed to get file length: %s", filename);
+		LOG_ERROR("Failed to get file length: %s", filename);
                 fclose(f);
                 return NULL;
-        }
+	}
 
-        LOG_DEBUG("File length: %ld bytes", length);
-        rewind(f);
+	LOG_DEBUG("File length: %ld bytes", length);
+    	rewind(f);
 
-        char *buffer = malloc(length + 1);
-        if (!buffer)
+    	char *buffer = malloc(length + 1);
+    	if (!buffer) 
+    	{
+		LOG_ERROR("Memory allocation failed for file buffer");
+        	fclose(f);
+        	return NULL;
+    	}
+
+    	size_t read_count = fread(buffer, 1, length, f);
+        if (read_count != length)
         {
-                LOG_ERROR("Memory allocation failed for file buffer");
-                fclose(f);
-                return NULL;
-        }
-
-        size_t read_count = fread(buffer, 1, length, f);
-        if (read_count != (size_t)length)
-        {
-                LOG_ERROR("Failed to read file contents properly. Expected: %ld, Read: %zu", length, read_count);
+		LOG_ERROR("Failed to read file contents properly. Expected: %ld, Read: %zu", length, read_count);
                 free(buffer);
                 fclose(f);
                 return NULL;
         }
 
-        buffer[length] = '\0';
-        LOG_DEBUG("Successfully read file: %s", filename);
+    	buffer[length] = '\0';
+	LOG_DEBUG("Successfully read file: %s", filename);
 
-        fclose(f);
-        return buffer;
+    	fclose(f);
+    	return buffer;
 }
 
-/* Function: parse_mqtt_config()
+
+/* Function: parse_mqtt_json_config_file()
  * ------------------------------
  *
  * Function to parse the mqtt configuration from json
@@ -87,39 +90,42 @@ char *read_json_file(const char *filename)
  *
  */
 
-int parse_mqtt_config(const char *filename, mqtt_json *config)
+
+int parse_mqtt_json_config_file(const char *filename, mqtt_json *config) 
 {
 	LOG_DEBUG("Starting MQTT config parsing from file: %s", filename);
 
-        if (filename == NULL)
-        {
+	if (filename == NULL)
+	{
 		LOG_ERROR("Filename is NULL");
-                return -1;
-        }
+		return -1;
+	}
 
-        char *json_data = read_json_file(filename);
-        
-	if (!json_data)
-        {
-                LOG_ERROR("Failed to read config file: %s\n", filename);
-                return -1;
-        }
+    	char *json_data = read_json_file(filename);
+
+	if (!json_data) 
+    	{
+        	LOG_ERROR("Failed to read config file: %s\n", filename);
+        	return -1;
+    	}
+
 	LOG_DEBUG("Successfully read JSON config file");
 
-        cJSON *root = cJSON_Parse(json_data);
+    	cJSON *root = cJSON_Parse(json_data);
+	
+	free(json_data);
 
-        free(json_data);
-        
-	if (!root)
-        {
-                LOG_ERROR("Failed to parse JSON config\n");
-                return -1;
-        }
+    	if (!root) 
+    	{
+        	LOG_ERROR("Failed to parse JSON config\n");
+        	return -1;
+    	}
+
 	LOG_DEBUG("Successfully parsed JSON root object");
 
-        cJSON *jhost = cJSON_GetObjectItem(root, "host");
-        cJSON *jport = cJSON_GetObjectItem(root, "port");
-        cJSON *jtopics = cJSON_GetObjectItem(root, "topics");
+    	cJSON *jhost = cJSON_GetObjectItem(root, "host");
+    	cJSON *jport = cJSON_GetObjectItem(root, "port");
+    	cJSON *jtopics = cJSON_GetObjectItem(root, "topics");
 
 	if (!cJSON_IsString(jhost))
         {
@@ -136,33 +142,32 @@ int parse_mqtt_config(const char *filename, mqtt_json *config)
                 LOG_ERROR("Missing or invalid 'topics' array in config");
         }
 
-        if (!cJSON_IsString(jhost) || !cJSON_IsNumber(jport) || !cJSON_IsArray(jtopics))
-        {
-                LOG_ERROR("Invalid config format\n");
-                cJSON_Delete(root);
-                return -1;
-        }
+    	if (!cJSON_IsString(jhost) || !cJSON_IsNumber(jport) || !cJSON_IsArray(jtopics)) 
+    	{
+        	LOG_ERROR("Invalid config format\n");
+        	cJSON_Delete(root);
+        	return -1;
+    	}
 
-	strncpy(config->mqtt_host, jhost->valuestring, sizeof(config->mqtt_host) - 1);
-	config->mqtt_host[sizeof(config->mqtt_host) - 1] = '\0';
+    	config->mqtt_host = strdup(jhost->valuestring);
+    	config->mqtt_port = jport->valueint;
+    	config->topic_count = 0;
 
-        config->mqtt_port = jport->valueint;
-        config->topic_count = 0;
-
-        LOG_DEBUG("MQTT host: %s", config->mqtt_host);
+	LOG_DEBUG("MQTT host: %s", config->mqtt_host);
         LOG_DEBUG("MQTT port: %d", config->mqtt_port);
 
-        cJSON *topic_item = NULL;
-        cJSON_ArrayForEach(topic_item, jtopics)
-        {
-                if (cJSON_IsString(topic_item) && config->topic_count < MAX_TOPICS)
-                {
-                        strncpy(config->mqtt_topics[config->topic_count], topic_item->valuestring, MAX_TOPIC_LEN - 1);
-                        config->mqtt_topics[config->topic_count][MAX_TOPIC_LEN - 1] = '\0';
-                        LOG_DEBUG("Added topic [%d]: %s", config->topic_count, config->mqtt_topics[config->topic_count]);
+    	cJSON *topic_item = NULL;
+    	cJSON_ArrayForEach(topic_item, jtopics) 
+    	{
+        	if (cJSON_IsString(topic_item) && config->topic_count < MAX_TOPICS) 
+		{
+            		strncpy(config->mqtt_topics[config->topic_count], topic_item->valuestring, MAX_TOPIC_LENGTH - 1);
+            		config->mqtt_topics[config->topic_count][MAX_TOPIC_LENGTH - 1] = '\0';
+
+            		LOG_DEBUG("Added topic [%d]: %s", config->topic_count, config->mqtt_topics[config->topic_count]);
 
 			config->topic_count++;
-                }
+        	}
 		else if (!cJSON_IsString(topic_item))
                 {
                         LOG_WARN("Skipping non-string topic entry");
@@ -171,15 +176,15 @@ int parse_mqtt_config(const char *filename, mqtt_json *config)
                 {
                         LOG_WARN("Topic limit reached (%d)", MAX_TOPICS);
                 }
-        }
+    	}
 
-        cJSON_Delete(root);
+    	cJSON_Delete(root);
 	LOG_DEBUG("Completed parsing config file: %s", filename);
 
-        return 0;
+    	return 0;
 }
 
-/* Function: build_event_json()
+/* Function: build_wifi_event_json()
  * ------------------------------------------
  *
  * Function to convert a raw Wi-Fi event string and optional SSID into a JSON-formatted string.
@@ -187,174 +192,220 @@ int parse_mqtt_config(const char *filename, mqtt_json *config)
  * event_str: the raw event string containing event type and MAC address
  * ssid: the SSID associated with the event (can be NULL)
  *
- * Returns: pointer to a dynamically allocated JSON string representing the event,
- *          or NULL on failure to parse the input
+ * Returns: pointer to a dynamically allocated JSON string representing the event, or NULL on failure to parse the input
+ *
  */
 
-char *build_event_json(const char *event_str, const char *ssid)
+char *build_wifi_event_json(const char *event_str, const char *ssid)
 {
-        LOG_DEBUG("Building event JSON from string: %s", event_str);
+	LOG_DEBUG("Building event JSON from string: %s", event_str);
 
-        char mac[18] = {0};
-        char event_type[64] = {0};
+    	char mac[18] = {0};
+    	char event_type[64] = {0};
+	char hostname[128] = {0};
+	int matched = 0;
 
-        if (sscanf(event_str, "<%*d>%63s %17s", event_type, mac) != 2)
-        {
-                LOG_ERROR("Failed to parse event string: %s", event_str);
-                return NULL;
-        }
+    	matched = sscanf(event_str, "<%*d>%63s %17s", event_type, mac);
 
-        LOG_DEBUG("Parsed event_type: %s, MAC: %s", event_type, mac);
+    	if (matched == 2)
+    	{
+        	LOG_DEBUG("Parsed event_type: %s, MAC: %s", event_type, mac);
 
-        time_t now = time(NULL);
-        struct tm *t = localtime(&now);
-        char timestamp[64];
-        strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", t);
+        	if (get_hostname_from_mac(mac, hostname, sizeof(hostname)) != 0)
+        	{
+            		strncpy(hostname, "Unknown", sizeof(hostname));
+        	}
+    	}
+    	else if (matched == 1)
+    	{	
+        	LOG_DEBUG("Parsed event_type: %s (No MAC found)", event_type);
+        	strcpy(mac, "N/A");
+        	strcpy(hostname, "Unknown");
+    	}
+    	else
+    	{
+        	LOG_ERROR("Failed to parse event string: %s", event_str);
+        	return NULL;
+    	}
+/*
+	if (strstr(event_str, "AP-STA-CONNECTED") || strstr(event_str, "AP-STA-DISCONNECTED") || strstr(event_str, "EAPOL-4WAY-HS-COMPLETED"))
+	{
+    		int matched = sscanf(event_str, "<%*d>%63s %17s", event_type, mac);
+    		
+    		if (matched == 2)
+    		{	
+        		LOG_DEBUG("Parsed event_type: %s, MAC: %s", event_type, mac);
 
-        LOG_DEBUG("Generated timestamp: %s", timestamp);
+			if (get_hostname_from_mac(mac, hostname, sizeof(hostname)) != 0)
+            		{
+                		strncpy(hostname, "Unknown", sizeof(hostname));
+            		}
+			
+    		}
+    		else
+    		{	
+        		LOG_WARN("Expected MAC but not found: %s", event_str);
+        		strcpy(mac, "N/A");
+			strcpy(hostname, "Unknown");
+    		}
+	}
+	else
+	{
+       		int matched = sscanf(event_str, "<%*d>%63[^\n]", event_type);
+    		if (matched < 1)
+    		{
+        		LOG_ERROR("Failed to parse event string: %s", event_str);
+        		return NULL;
+    		}
 
-        cJSON *root = cJSON_CreateObject();
-        if (!root)
+    		LOG_DEBUG("Parsed event_type: %s (System message)", event_type);
+    		strcpy(mac, "N/A");
+		strcpy(hostname, "Unknown");
+	}
+*/	
+    	time_t now = time(NULL);
+    	struct tm *t = localtime(&now);
+	char timestamp[64] = {0};
+	strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", t);
+
+    	cJSON *root = cJSON_CreateObject();
+
+	if (!root)
         {
                 LOG_ERROR("Failed to create cJSON root object");
                 return NULL;
         }
 
-        cJSON_AddStringToObject(root, "event_type", event_type);
-        cJSON_AddStringToObject(root, "mac", mac);
+    	cJSON_AddStringToObject(root, "event_type", event_type);
+    	cJSON_AddStringToObject(root, "mac", mac);
+	cJSON_AddStringToObject(root, "hostname", hostname); 
 
-        if (ssid)
-        {
-                cJSON_AddStringToObject(root, "ssid", ssid);
-                LOG_DEBUG("SSID added to JSON: %s", ssid);
-        }
-        else
-        {
-                cJSON_AddStringToObject(root, "ssid", "");
-                LOG_DEBUG("SSID not provided; added empty string");
-        }
+	if (ssid)
+	{
+        	cJSON_AddStringToObject(root, "ssid", ssid);
+		LOG_DEBUG("SSID added to JSON: %s", ssid);
+	}	
+	else
+    	{	
+        	cJSON_AddStringToObject(root, "ssid", "");
+		LOG_DEBUG("SSID not provided; added empty string");
+	}
+    	
+	cJSON_AddStringToObject(root, "timestamp", timestamp);
 
-        cJSON_AddStringToObject(root, "timestamp", timestamp);
+    	char *json_str = cJSON_Print(root);
 
-        char *json_str = cJSON_Print(root);
-        if (!json_str)
+	if (!json_str)
         {
                 LOG_ERROR("Failed to print JSON string");
                 cJSON_Delete(root);
                 return NULL;
         }
 
-        LOG_DEBUG("Built JSON: %s", json_str);
+	LOG_DEBUG("Built JSON: %s", json_str);
 
-        cJSON_Delete(root);
-        return json_str;
+    	cJSON_Delete(root);
+    	return json_str;
 }
 
 /* Function: build_sysinfo_json()
  * ------------------------------------------
  *
- * Function to gather system information including hostname, CPU usage, and memory usage,
- * and convert it into a JSON-formatted string.
+ * Function to gather system information including hostname, CPU usage, and memory usage, and convert it into a JSON-formatted string.
  *
- * Takes no arguments.
+ * Returns: pointer to a dynamically allocated JSON string containing system stats, or NULL if creation fails at any stage.
  *
- * Returns: pointer to a dynamically allocated JSON string containing system stats,
- *          or NULL if creation fails at any stage.
  */
 
 char *build_sysinfo_json(const char *hostapd_config)
 {
-        char hostname[128] = {0};
-        gethostname(hostname, sizeof(hostname));
-        LOG_DEBUG("Hostname: %s", hostname);
+    	char hostname[128] = {0};
+    	gethostname(hostname, sizeof(hostname));
 	
-	char iface[IFNAMSIZ] = {0};
+    	FILE *fp = NULL;
+    	char buf[128] = {0};
+    	double cpu_usage = 0.0;
+    	unsigned long mem_usage = 0;
+	unsigned long long int user = 0, nice = 0, system = 0, idle = 0;
+    	unsigned long long int user2 = 0, nice2 = 0, system2 = 0, idle2 = 0;
+    
+	int clients = get_connected_clients();
 
-	int clients = 0;
-	if (get_wireless_interface(iface, sizeof(iface)) == 0)
-	{
-    		LOG_DEBUG("[SYSINFO] Detected wireless interface: %s", iface);
-    		
-		char socket_path[108] = {0};
-    		snprintf(socket_path, sizeof(socket_path), "/var/run/hostapd/%s", iface);
+    	fp = fopen("/proc/stat", "r");
 
-		clients = get_connected_clients(iface);  		
+	if (fp)
+    	{
+               	fscanf(fp, "cpu %llu %llu %llu %llu", &user, &nice, &system, &idle);
+        	fclose(fp);
+		LOG_DEBUG("First read - user: %llu, nice: %llu, system: %llu, idle: %llu", user, nice, system, idle);
+
+        	sleep(1);
+        	
+		fp = fopen("/proc/stat", "r");
+        	if(fp)
+		{
+        		fscanf(fp, "cpu %llu %llu %llu %llu", &user2, &nice2, &system2, &idle2);
+        		fclose(fp);
+			LOG_DEBUG("Second read - user: %llu, nice: %llu, system: %llu, idle: %llu", user2, nice2, system2, idle2);
+
+        		double total1 = user + nice + system + idle;
+        		double total2 = user2 + nice2 + system2 + idle2;
+        		double delta_total = total2 - total1;
+        		double delta_idle = idle2 - idle;
+
+        		cpu_usage = 100.0 * (delta_total - delta_idle) / delta_total;
+    			LOG_DEBUG("CPU Usage: %.2f%%", cpu_usage);
+		}
+		else
+        	{
+            		LOG_ERROR("Failed to open /proc/stat second read");
+        	}
 	}
 	else
-	{
-    		LOG_WARN("[SYSINFO] Could not determine wireless interface");
-	}
-
-        FILE *fp;
-        char buf[128] = {0};
-        double cpu_usage = 0.0;
-        double mem_usage = 0.0;
-
-        fp = fopen("/proc/stat", "r");
-        if (fp)
-        {
-                unsigned long long int user, nice, system, idle;
-                fscanf(fp, "cpu %llu %llu %llu %llu", &user, &nice, &system, &idle);
-                fclose(fp);
-                LOG_DEBUG("First read - user: %llu, nice: %llu, system: %llu, idle: %llu", user, nice, system, idle);
-
-                sleep(1);
-
-                fp = fopen("/proc/stat", "r");
-                unsigned long long int user2, nice2, system2, idle2;
-                fscanf(fp, "cpu %llu %llu %llu %llu", &user2, &nice2, &system2, &idle2);
-                fclose(fp);
-                LOG_DEBUG("Second read - user: %llu, nice: %llu, system: %llu, idle: %llu", user2, nice2, system2, idle2);
-
-                double total1 = user + nice + system + idle;
-                double total2 = user2 + nice2 + system2 + idle2;
-                double delta_total = total2 - total1;
-                double delta_idle = idle2 - idle;
-
-                cpu_usage = 100.0 * (delta_total - delta_idle) / delta_total;
-                LOG_DEBUG("CPU Usage: %.2f%%", cpu_usage);
-        }
-        else
         {
                 LOG_ERROR("Failed to open /proc/stat for CPU usage");
         }
 
-        unsigned long mem_total = 0, mem_free = 0;
-        fp = fopen("/proc/meminfo", "r");
-        if (fp)
-        {
-                while (fgets(buf, sizeof(buf), fp))
-                {
-                        if (sscanf(buf, "MemTotal: %lu kB", &mem_total))
-                        {
-                                continue;
-                        }
-                        if (sscanf(buf, "MemAvailable: %lu kB", &mem_free))
-                        {
-                                break;
-                        }
-                }
-                fclose(fp);
-                if (mem_total > 0)
+    	// Memory usage
+    	unsigned long mem_total = 0, mem_free = 0;
+    	fp = fopen("/proc/meminfo", "r");
+    	if (fp)
+    	{
+        	while (fgets(buf, sizeof(buf), fp))
+        	{
+            		if (sscanf(buf, "MemTotal: %lu kB", &mem_total)) 
+			{
+				continue;	
+			}
+			if (sscanf(buf, "MemAvailable: %lu kB", &mem_free))
+			{
+				break;
+			}
+		}
+        	fclose(fp);
+
+		if (mem_total > 0)
                 {
                         mem_usage = 100.0 * (mem_total - mem_free) / mem_total;
-                        LOG_DEBUG("Memory Usage: %.2f%% (Total: %lu KB, Available: %lu KB)", mem_usage, mem_total, mem_free);
+                        LOG_DEBUG("Memory Usage: %lu (Total: %lu KB, Available: %lu KB)", mem_usage, mem_total, mem_free);
                 }
                 else
                 {
                         LOG_ERROR("Failed to read total memory from /proc/meminfo");
                 }
-        }
-        else
+      	}
+	else
         {
                 LOG_ERROR("Failed to open /proc/meminfo for memory usage");
         }
 
-        cJSON *root = cJSON_CreateObject();
+	unsigned long mem_used_kb = mem_total - mem_free;
+
+    	cJSON *root = cJSON_CreateObject();
 	cJSON_AddNumberToObject(root, "clients", clients);
-        cJSON_AddStringToObject(root, "hostname", hostname);
-        cJSON_AddNumberToObject(root, "cpu", cpu_usage);
-        cJSON_AddNumberToObject(root, "memory", mem_usage);
+    	cJSON_AddStringToObject(root, "hostname", hostname);
+    	cJSON_AddNumberToObject(root, "cpu", cpu_usage);
+    	cJSON_AddNumberToObject(root, "memory", mem_used_kb);
 
 	if (hostapd_config && strlen(hostapd_config) > 0)
     	{
@@ -363,14 +414,14 @@ char *build_sysinfo_json(const char *hostapd_config)
 		char config_copy[512] = {0};
 		strncpy(config_copy, hostapd_config, sizeof(config_copy));
 		config_copy[sizeof(config_copy) - 1] = '\0';
-		
+
 		char *line = strtok(config_copy, "\n");
-		
-		while (line) 
+
+		while (line)
 		{
     			char *eq = strchr(line, '=');
-    			
-			if (eq) 
+
+			if (eq)
 			{
         			*eq = '\0';
         			const char *key = line;
@@ -379,15 +430,14 @@ char *build_sysinfo_json(const char *hostapd_config)
     			}
     			line = strtok(NULL, "\n");
 		}
-	
-		cJSON_AddItemToObject(root, "hostapd_config", config_obj);
-	
+
+		cJSON_AddItemToObject(root, "ap_details", config_obj);
+
     	}
 
-        char *json_str = cJSON_Print(root);
-        LOG_DEBUG("Built sysinfo JSON: %s", json_str);
+    	char *json_str = cJSON_Print(root);
+    	LOG_DEBUG("Built sysinfo JSON: %s", json_str);
 
-        cJSON_Delete(root);
-        return json_str;
+	cJSON_Delete(root);
+    	return json_str;
 }
-

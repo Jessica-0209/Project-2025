@@ -19,40 +19,41 @@ static struct mosquitto *mosq = NULL;
  *
  * Returns: 0 on success, -1 on failure
  */
-	
+
 int mqtt_client_init(const char *host, int port, const char *client_id)
 {
-        LOG_DEBUG("Initializing MQTT client with ID: %s", client_id);
-        LOG_DEBUG("Connecting to host: %s, port: %d", host, port);
+    	LOG_DEBUG("Initializing MQTT client with ID: %s", client_id);
+    	LOG_DEBUG("Connecting to host: %s, port: %d", host, port);
 
-        if (mosquitto_lib_init() != MOSQ_ERR_SUCCESS) 
-	{
-    		LOG_ERROR("Failed to initialize Mosquitto library\n");
-    		return 1;
-	}
-        LOG_DEBUG("Mosquitto library initialized");
+    	if (mosquitto_lib_init() != MOSQ_ERR_SUCCESS)
+    	{
+        	LOG_ERROR("Failed to initialize Mosquitto library\n");
+        	return 1;
+    	}
+    	LOG_DEBUG("Mosquitto library initialized");
 
-        mosq = mosquitto_new(client_id, true, NULL);
-        if (!mosq)
-        {
-                LOG_ERROR("Failed to create mosquitto client");
-                return -1;
-        }
-        LOG_DEBUG("Mosquitto client created");
+    	mosq = mosquitto_new(client_id, true, NULL);
+    	
+    	if (!mosq)
+    	{
+        	LOG_ERROR("Failed to create mosquitto client");
+        	return -1;
+    	}
+    	LOG_DEBUG("Mosquitto client created");
 
-        if (mosquitto_connect(mosq, host, port, 60) != MOSQ_ERR_SUCCESS)
-        {
-                LOG_ERROR("Failed to connect to MQTT broker");
-                mosquitto_destroy(mosq);
-                mosq = NULL;
-                return -1;
-        }
-        LOG_DEBUG("Mosquitto client connected to broker");
+    	if (mosquitto_connect(mosq, host, port, 60) != MOSQ_ERR_SUCCESS)
+    	{
+        	LOG_ERROR("Failed to connect to MQTT broker");
+        	mosquitto_destroy(mosq);
+        	mosq = NULL;
+        	return -1;
+    	}
+    	LOG_DEBUG("Mosquitto client connected to broker");
 
-        mosquitto_loop_start(mosq);
-        LOG_INFO("Connected to MQTT broker and started loop");
+    	mosquitto_loop_start(mosq);
+    	LOG_INFO("Connected to MQTT broker and started loop");
 
-        return 0;
+    	return 0;
 }
 
 /* Function: mqtt_client_publish()
@@ -68,27 +69,27 @@ int mqtt_client_init(const char *host, int port, const char *client_id)
 
 int mqtt_client_publish(const char *topic, const char *message)
 {
-        if (!mosq)
-        {
-                LOG_ERROR("MQTT client not initialized");
-                return -1;
-        }
+    	if (!mosq)
+    	{
+        	LOG_ERROR("MQTT client not initialized");
+        	return -1;
+    	}
 
-        LOG_DEBUG("Publishing to topic: %s", topic);
-        LOG_DEBUG("Message: %s", message);
+    	LOG_DEBUG("Publishing to topic: %s", topic);
+    	LOG_DEBUG("Message: %s", message);
 
-        int ret = mosquitto_publish(mosq, NULL, topic, strlen(message), message, 1, false);
+    	int ret = mosquitto_publish(mosq, NULL, topic, strlen(message), message, 1, false);
 
-        if (ret != MOSQ_ERR_SUCCESS)
-        {
-                LOG_WARN("Failed to publish message to topic: %s (Error: %d)", topic, ret);
-        }
-        else
-        {
-                LOG_DEBUG("Message published successfully to topic: %s", topic);
-        }
+    	if (ret != MOSQ_ERR_SUCCESS)
+    	{
+        	LOG_WARN("Failed to publish message to topic: %s (Error: %d)", topic, ret);
+    	}
+    	else
+    	{
+        	LOG_DEBUG("Message published successfully to topic: %s", topic);
+    	}
 
-        return ret;
+    	return ret;
 }
 
 /* Function: mqtt_client_cleanup()
@@ -101,31 +102,31 @@ int mqtt_client_publish(const char *topic, const char *message)
  * Returns: void
  */
 
-void mqtt_client_cleanup()
+void mqtt_client_cleanup(void)
 {
-        LOG_DEBUG("Cleaning up MQTT client");
+    	LOG_DEBUG("Cleaning up MQTT client");
 
-        if (mosq)
-        {
-                mosquitto_loop_stop(mosq, true);
-                LOG_DEBUG("Mosquitto loop stopped");
+    	if (mosq)
+    	{
+        	mosquitto_loop_stop(mosq, true);
+        	LOG_DEBUG("Mosquitto loop stopped");
 
-                mosquitto_disconnect(mosq);
-                LOG_DEBUG("Mosquitto disconnected");
+        	mosquitto_disconnect(mosq);
+        	LOG_DEBUG("Mosquitto disconnected");
 
-                mosquitto_destroy(mosq);
-                LOG_DEBUG("Mosquitto client destroyed");
+        	mosquitto_destroy(mosq);
+        	LOG_DEBUG("Mosquitto client destroyed");
 
-                mosq = NULL;
+        	mosq = NULL;
 
-                mosquitto_lib_cleanup();
-                LOG_DEBUG("Mosquitto library cleaned up");
+        	mosquitto_lib_cleanup();
+        	LOG_DEBUG("Mosquitto library cleaned up");
 
-                LOG_INFO("MQTT client cleanup done");
-        }
-        else
-        {
-                LOG_DEBUG("MQTT client already NULL, nothing to clean up");
-        }
+        	LOG_INFO("MQTT client cleanup done");
+    	}
+    	else
+    	{
+        	LOG_DEBUG("MQTT client already NULL, nothing to clean up");
+    	}
 }
 

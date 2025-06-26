@@ -1,16 +1,53 @@
-#include <sys/ioctl.h>
-#include <net/if.h>
-#include <linux/wireless.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <dirent.h>
-#include <ctype.h>
-#include <stdio.h>
-#include <errno.h>
-
 #include "network.h"
 #include "log.h"
+
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <net/if.h>
+#include <linux/wireless.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+
+#define HOSTAPD_DIR "/var/run/hostapd"
+#define MAX_PATH_LEN 128
+#define LEASES_FILE "/tmp/dhcp.leases"
+
+/* Function: create_unix_socket()
+ * --------------------------------------------------
+ *
+ * This function can be used to create a UNIX socket for both stream (SOCK_STREAM)
+ * and datagram (SOCK_DGRAM) communication.
+ *
+ * type: Type of socket - SOCK_STREAM or SOCK_DGRAM.
+ * path: Filesystem path for the UNIX socket.
+ * bind_socket: Whether to bind the socket to the path (1 = yes, 0 = no).
+ *
+ * Returns: File descriptor on success, -1 on error.
+ *
+ */
+
+int create_socket(const int domain, const int type, const int protocol)
+{
+    	int fd = socket(domain, type, protocol);
+    	
+    	if (fd < 0) 
+    	{
+        	LOG_ERROR("Socket creation failed [domain=%d, type=%d]: %s", domain, type, strerror(errno));
+        	return -1;
+    	}
+
+	if (domain != AF_UNIX && domain != AF_INET)
+	{
+    		LOG_WARN("Unusual socket domain passed: %d", domain);
+	}
+
+    	LOG_DEBUG("Socket created successfully [fd=%d, domain=%d, type=%d]", fd, domain, type);
+    	return fd;
+}
 
 /* Function: get_wireless_interface()
  * ------------------------------------------
@@ -21,44 +58,58 @@
  * iface_name: Buffer to store the name of the detected wireless interface.
  * max_len:    Maximum length of the buffer `iface_name`.
  *
- * Returns: 0 on success (wireless interface found), -1 on failure.
+ * Returns: 0 on success, -1 on failure.
  */
 
 int get_wireless_interface(char *iface_name, size_t max_len)
 {
-    	int sock = socket(AF_INET, SOCK_DGRAM, 0);
-    	
+	LOG_DEBUG("[WIFI] Attempting to find wireless interface...");
+
+	int sock = socket(AF_INET, SOCK_DGRAM, 0);
     	if (sock < 0)
     	{
+		LOG_ERROR("[WIFI] Failed to create socket");
         	return -1;
 	}
+
     	struct ifconf ifc;
-    	struct ifreq ifr[16] = {0}; 
-    	ifc.ifc_buf = (char *)ifr;
-    	ifc.ifc_len = sizeof(ifr);
+    	struct ifreq ifr[16] = {0};
+	ifc.ifc_len = sizeof(ifr);
+	ifc.ifc_buf = (char *)ifr;
 
     	if (ioctl(sock, SIOCGIFCONF, &ifc) == -1)
     	{
+		LOG_ERROR("[WIFI] ioctl SIOCGIFCONF failed");
         	close(sock);
         	return -1;
     	}
 
     	int num_ifaces = ifc.ifc_len / sizeof(struct ifreq);
-    	
+	LOG_DEBUG("[WIFI] Number of interfaces found: %d", num_ifaces);
+
     	for (int i = 0; i < num_ifaces; i++)
-    	{	
+    	{
+		LOG_DEBUG("[WIFI] Checking interface: %s", ifr[i].ifr_name);
+
         	struct iwreq pwrq;
         	memset(&pwrq, 0, sizeof(pwrq));
         	strncpy(pwrq.ifr_name, ifr[i].ifr_name, IFNAMSIZ);
 
-        	if (ioctl(sock, SIOCGIWNAME, &pwrq) != -1)  
+        	if (ioctl(sock, SIOCGIWNAME, &pwrq) != -1)
         	{
+			LOG_INFO("[WIFI] Wireless interface found: %s", ifr[i].ifr_name);
+
             		strncpy(iface_name, ifr[i].ifr_name, max_len);
             		close(sock);
             		return 0;
         	}
+		else
+                {
+                        LOG_DEBUG("[WIFI] %s is not a wireless interface", ifr[i].ifr_name);
+                }
     	}
 
+	LOG_WARN("[WIFI] No wireless interface found");
     	close(sock);
     	return -1;
 }
@@ -67,197 +118,99 @@ int get_wireless_interface(char *iface_name, size_t max_len)
  * ------------------------------------------
  *
  * Constructs the full path to the hostapd control socket based on the active wireless interface.
- * First detects the wireless interface using `get_wireless_interface()`, then combines it
- * with the hostapd control directory path (defined by HOSTAPD_DIR).
  *
  * socket_path: Buffer to store the resulting hostapd socket path.
  * max_len:     Maximum length of the buffer `socket_path`.
  *
- * Returns: 0 on success (socket path constructed), -1 on failure (no wireless interface found).
+ * Returns: 0 on successful construction of socket, -1 on failure.
  */
 
 int get_hostapd_socket_path(char *socket_path, size_t max_len)
 {
-    	char iface[IFNAMSIZ] = {0};
+	LOG_DEBUG("[HOSTAPD] Getting hostapd control socket path...");
+
+	char iface[IFNAMSIZ] = {0};
 
     	if (get_wireless_interface(iface, sizeof(iface)) != 0)
     	{
-        	LOG_ERROR("No wireless interface found");
+        	LOG_ERROR("[HOSTAPD] No wireless interface found");
         	return -1;
     	}
 
+	LOG_DEBUG("[HOSTAPD] Found wireless interface: %s", iface);
+
     	snprintf(socket_path, max_len, "%s/%s", HOSTAPD_DIR, iface);
+	LOG_INFO("[HOSTAPD] Computed socket path: %s", socket_path);
+
     	return 0;
 }
 
-/*void get_hostapd_config(cJSON *root)
+int get_hostname_from_mac(const char *mac, char *hostname, size_t hostname_len)
 {
-    	DIR *proc_dir = opendir("/proc");
-    	
-	if (!proc_dir)
-    	{
-        	LOG_ERROR("Failed to open /proc directory");
-        	return;
-    	}
 
-    	char config_path[256] = {0};
-	char binary_path[512] = {0};
-    	struct dirent *entry;
+        FILE *file = fopen(LEASES_FILE, "r");
 
-    	while ((entry = readdir(proc_dir)) != NULL)
-    	{
-        	if (!isdigit(entry->d_name[0]))
-            	{
-			continue;
-		}
+        if (!file)
+        {
+                perror("Failed to open DHCP leases file");
+                return -1;
+        }
 
-        	char cmdline_path[512] = {0};
-        	snprintf(cmdline_path, sizeof(cmdline_path), "/proc/%s/cmdline", entry->d_name);
+        char line[256] = {0};
+        while (fgets(line, sizeof(line), file))
+        {
+                char client_mac[32] = {0};
+                char client_hostname[128] = {0};
+                if (sscanf(line, "%*s %31s %*s %127s %*s", client_mac, client_hostname) == 2)
+                {
+                        if (strcasecmp(mac, client_mac) == 0)
+                        {
+                                strncpy(hostname, client_hostname, hostname_len - 1);
+                                hostname[hostname_len - 1] = '\0';
+                                fclose(file);
+                                return 0;
+                        }
+                }
+        }
 
-        	FILE *fp = fopen(cmdline_path, "r");
-        	
-		if (!fp)
-		{
-            		continue;
-		}
-        
-		char cmdline[1024] = {0};
-       		size_t len = fread(cmdline, 1, sizeof(cmdline) - 1, fp);
-        	fclose(fp);
+        fclose(file);
+        return -1;
+}
 
-        	if (len == 0)
-		{
-            		continue;
-    		}
-        	cmdline[len] = '\0';
-
-		char *arg = cmdline;
-		int arg_index = 0;
-
-		while (arg < cmdline + len)
-            	{
-			if (arg_index == 0 && (strcmp(arg, "hostapd") == 0 || strstr(arg, "/hostapd")))
-            		{
-                		strncpy(binary_path, arg, sizeof(binary_path) - 1);
-            		}
-			
-			if (strstr(arg, ".conf"))
-                	{
-            			if (arg[0] == '/')
-                    		{
-                        		strncpy(config_path, arg, sizeof(config_path) - 1);
-                    		}
-                   		else if (strlen(binary_path) > 0)
-                    		{
-                       			char *last_slash = strrchr(binary_path, '/');
-                       		
-					if (last_slash)
-                       			{
-                        			*last_slash = '\0'; 
-                            			snprintf(config_path, sizeof(config_path), "%s/%s", binary_path, arg);
-                        		}
-                		}
-				else
-               			{
-                    			char cwd[256] = {0};
-                    			if (getcwd(cwd, sizeof(cwd)))
-                    			{
-                        			snprintf(config_path, sizeof(config_path), "%s/%s", cwd, arg);
-                    			}
-                		}
-				break;
-            		}
-			arg += strlen(arg) + 1;
-            		arg_index++;
-		}		
-
-       		if (strlen(config_path) > 0)
-    		{ 
-			break;
-		}
-       	}
-
-    	closedir(proc_dir);
-
-    	if (strlen(config_path) == 0)
-    	{
-        	LOG_WARN("Could not detect hostapd config path from running process");
-        	return;
-    	}
-
-    	LOG_DEBUG("Detected hostapd config file: %s", config_path);
-
-    	FILE *fp = fopen(config_path, "r");
-    	
-	if (!fp)
-    	{
-        	LOG_ERROR("Failed to open detected hostapd config: %s", config_path);
-        	return;
-    	}
-
-    	cJSON *config_obj = cJSON_CreateObject();
-    	char line[256] = {0};
-
-    	while (fgets(line, sizeof(line), fp))
-    	{
-        	if (line[0] == '#' || line[0] == '\n') 
-		{
-			continue;
-		}
-
-        	char *eq = strchr(line, '=');
-        	
-		if (!eq)
-		{
-			continue;
-		}
-
-        	*eq = '\0';
-        	char *key = line;
-        	char *val = eq + 1;
-        	val[strcspn(val, "\r\n")] = '\0';
-
-        	cJSON_AddStringToObject(config_obj, key, val);
-        	LOG_DEBUG("Parsed config key=%s, value=%s", key, val);
-    	}
-
-    	fclose(fp);
-    	cJSON_AddItemToObject(root, "hostapd_config", config_obj);
-    	LOG_DEBUG("Appended hostapd config to sysinfo JSON from: %s", config_path);
-}*/
-
-/* Function: unlink_socket_path()
- * -------------------------------------------
- * This function checks if the provided socket file path exists on the filesystem.
+/*
+ * Function: unlink_socket_path()
+ * ----------------------------------------
+ *
+ * Function to check if the provided socket file path exists on the filesystem.
  * If it does, it unlinks (removes) it.
  *
- * path: The path of the Unix domain socket file
+ * path: The path of the UNIX domain socket file
  *
  * Returns: 0 on success, -1 on failure
  *
  */
 
-int unlink_socket_path(const char *path)
+int unlink_socket_path(const char *path) 
 {
-    	if (!path)
-    	{
-        	fprintf(stderr, "[UNLINK] Invalid path: NULL\n");
-        	return -1;
-    	}
+  	if (!path) 
+  	{
+    		LOG_ERROR("[UNLINK] Invalid path: NULL");
+    		return -1;
+  	}
 
-    	if (unlink(path) == 0)
-    	{
-        	printf("[UNLINK] Successfully unlinked socket path: %s\n", path);
-        	return 0;
-    	}
-    	else if (errno == ENOENT)
-    	{
-        	printf("[UNLINK] Path does not exist, nothing to unlink: %s\n", path);
-        	return 0;
-    	}
-    	else
-    	{
-        	fprintf(stderr, "[UNLINK] Failed to unlink %s: %s\n", path, strerror(errno));
-        	return -1;
-    	}
+  	if (unlink(path) == 0) 
+  	{
+    		LOG_INFO("[UNLINK] Successfully unlinked socket path: %s", path);
+    		return 0;
+  	} 	
+  	else if (errno == ENOENT) 
+  	{
+    		LOG_DEBUG("[UNLINK] Path does not exist, nothing to unlink: %s", path);
+    		return 0;
+  	} 
+  	else 
+  	{
+    		LOG_ERROR("[UNLINK] Failed to unlink %s: %s", path, strerror(errno));
+  		return -1;
+  	}
 }
