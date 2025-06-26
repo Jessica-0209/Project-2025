@@ -115,8 +115,8 @@ char *get_ssid(void)
 
 void *handle_cli_commands(void *arg)
 {
-    	int server_fd;
-    	int client_fd;
+    	int server_fd = 0;
+    	int client_fd = 0;
     	struct sockaddr_un addr;
     	char buf[64] = {0};
 
