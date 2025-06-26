@@ -11,6 +11,7 @@ INC_DIR = include
 LIB_DIR = lib
 BUILD_DIR = build
 BIN_DIR = bin
+HOSTAPD_DIR = hostapd
 
 # Source files
 SRCS = $(wildcard $(SRC_DIR)/*.c) $(wildcard $(LIB_DIR)/*.c)
@@ -45,6 +46,11 @@ $(BIN_DIR)/client_details: tools/cli_client.c lib/log.c lib/network.c
 
 client_details: $(BIN_DIR)/client_details
 
+# Compile AP Setup script separately
+$(BIN_DIR)/ap_setup: $(HOSTAPD_DIR)/ap_setup.c
+	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
+
+ap_setup: $(BIN_DIR)/ap_setup
+
 clean:
 	rm -rf $(BUILD_DIR)/*.o $(TARGET)
-
