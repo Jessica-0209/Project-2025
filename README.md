@@ -32,6 +32,11 @@ cd Project-2025
 make clean
 make
 ```
+##4. Build the hostapd
+```
+cp ../hostap/hostapd/defconfig ../hostap/hostapd/.config
+cd ../hostap/hostapd && make
+```
 # Steps for Execution
 
 ## 1. Configure Wi-Fi AP Interface and Start Hostapd
@@ -93,9 +98,8 @@ sudo ./bin/client_details
 ```
 - Connects to subscriber and prints stored MAC-based event records
 
-## 7. Reconnect to Wifi
-
-Dynamically fetch the wireless interface name and reconnect to Wi-Fi
+## 7. Terminate all Processes
 ```
-sudo ./reconnect_wifi
+Ctrl+C
 ```
+in all the terminals
