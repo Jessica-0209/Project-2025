@@ -6,6 +6,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include "ap_setup.h"
+
 char g_interface[32] = {0};
 pid_t hostapd_pid = -1;
 
@@ -15,7 +17,7 @@ void start_hostapd(void)
 
     	if (pid == 0)
     	{
-               	execlp("sudo", "sudo", "./hostapd", "hostapd.conf", (char *)NULL);
+		execlp("sudo", "sudo", "../hostap/hostapd/hostapd", "../hostap/hostapd/hostapd.conf", (char *)NULL);
 
               	perror("Failed to start hostapd");
         	exit(EXIT_FAILURE);
@@ -42,9 +44,9 @@ void run_command(const char *command)
         	fprintf(stderr, "Command failed: %s\n", command);
         	exit(EXIT_FAILURE);
     	}
-}
 
-void get_wireless_interface(char *interface, size_t size) 
+}
+int get_wireless_interface(char *interface, size_t size) 
 {
     	FILE *fp = popen("iw dev | awk '$1==\"Interface\"{print $2}' | head -n 1", "r");
     	
@@ -64,6 +66,8 @@ void get_wireless_interface(char *interface, size_t size)
     	interface[strcspn(interface, "\n")] = '\0';
 
     	pclose(fp);
+
+	return 0;
 }
 
 void update_dns(void)
@@ -100,9 +104,9 @@ void cleanup(int signum)
         exit(EXIT_SUCCESS);
 }
 
-void generate_hostapd_conf(const char *interface)
+int generate_hostapd_conf(const char *interface)
 {
-    	FILE *fp = fopen("hostapd.conf", "w");
+    	FILE *fp = fopen("../hostap/hostapd/hostapd.conf", "w");
     	
     	if (fp == NULL)
     	{
@@ -135,20 +139,27 @@ void generate_hostapd_conf(const char *interface)
 
     	fclose(fp);
     	printf("[INFO] Generated hostapd.conf with interface: %s\n", interface);
+	
+	return 0;
 }
 
-int main(void) 
+int ap_setup_main(void) 
 {
 	signal(SIGINT, cleanup);
 	signal(SIGTERM, cleanup);
 
-    	get_wireless_interface(g_interface, sizeof(g_interface));
+    	if(get_wireless_interface(g_interface, sizeof(g_interface)) != 0)
+	{
+		fprintf(stderr, "[ERROR] Failed to get wireless interface.\n");
+		return -1;
+	}
     	printf("Using wireless interface: %s\n", g_interface);
 
-	generate_hostapd_conf(g_interface);
-
-	run_command("cp defconfig .config");
-	run_command("make");
+	if(generate_hostapd_conf(g_interface) != 0)
+	{
+		fprintf(stderr, "[ERROR] Failed to generate hostapd.conf.\n");
+		return -1;
+	}
 
     	run_command("sudo systemctl stop NetworkManager");
 
