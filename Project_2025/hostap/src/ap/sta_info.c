@@ -1631,9 +1631,7 @@ void ap_sta_set_authorized_event(struct hostapd_data *hapd,
 
 		wpa_msg(hapd->msg_ctx, MSG_INFO, AP_STA_CONNECTED "%s%s%s%s",
 			buf, ip_addr, keyid_buf, dpp_pkhash_buf);
-		printf("\n################### Debugging ################\n");
 		wpa_msg(hapd->msg_ctx, MSG_INFO, AP_STA_CONNECTED "%s", buf);
-		//wpa_msg(" \nbuf -------------- %s\n",buf);
 
 		if (hapd->msg_ctx_parent &&
 		    hapd->msg_ctx_parent != hapd->msg_ctx)

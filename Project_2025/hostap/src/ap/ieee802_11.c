@@ -3088,7 +3088,6 @@ static void handle_auth(struct hostapd_data *hapd,
 			const struct ieee80211_mgmt *mgmt, size_t len,
 			int rssi, int from_queue)
 {
-	printf(" %s %d\n" ,__FILE__,__LINE__);
 
 	u16 auth_alg, auth_transaction, status_code;
 	u16 resp = WLAN_STATUS_SUCCESS;
@@ -3453,7 +3452,6 @@ static void handle_auth(struct hostapd_data *hapd,
 			goto fail;
 		}
 	}
-	printf(" auth_alg ================ %d\n",auth_alg);
 	switch (auth_alg) {
 	case WLAN_AUTH_OPEN:
 		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
